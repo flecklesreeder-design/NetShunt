@@ -57,7 +57,7 @@ type App struct {
 	hidden            bool
 }
 
-const appVersion = "3.3.1"
+const appVersion = "3.3.2"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {

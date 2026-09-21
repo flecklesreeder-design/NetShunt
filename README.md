@@ -8,7 +8,7 @@
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows-green.svg)]()
-[![version](https://img.shields.io/badge/version-3.3.1-orange.svg)]()
+[![version](https://img.shields.io/badge/version-3.3.2-orange.svg)]()
 [![language](https://img.shields.io/badge/language-Go%20%26%20Wails-cyan.svg)]()
 
 </div>
@@ -86,7 +86,7 @@ NetShunt 不应修改与自身策略无关的系统路由，也不会在后台�
 
 ### 安装包（推荐）
 
-下载 `NetShunt_3.3.1_Setup.exe`，双击安装即可。安装包已内置 WebView2 Runtime Bootstrapper，无需额外环境。
+下载 `NetShunt_3.3.2_Setup.exe`，双击安装即可。安装包已内置 WebView2 Runtime Bootstrapper，无需额外环境。
 
 ### 从源码构建
 

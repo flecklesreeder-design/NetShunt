@@ -10,12 +10,12 @@ FILETYPE 0x1
     {
       VALUE "CompanyName", "chen"
       VALUE "FileDescription", "NetShunt"
-      VALUE "FileVersion", "3.3.1"
+      VALUE "FileVersion", "3.3.2"
       VALUE "InternalName", "NetShunt"
       VALUE "LegalCopyright", "Copyright (c) chen"
       VALUE "OriginalFilename", "NetShunt.exe"
       VALUE "ProductName", "NetShunt"
-      VALUE "ProductVersion", "3.3.1"
+      VALUE "ProductVersion", "3.3.2"
     }
   }
   BLOCK "VarFileInfo"
