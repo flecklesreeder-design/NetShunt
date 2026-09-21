@@ -2,11 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +56,9 @@ type App struct {
 	adapterLastStatus map[string]bool
 	hidden            bool
 }
+
+const appVersion = "3.0"
+const githubRepo = "flecklesreeder-design/chenflow"
 
 func NewApp() *App {
 	store := config.New()
@@ -362,6 +369,97 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		}
 		a.store.SetLanguage(lang)
 		a.updateRoleStatus()
+		return map[string]interface{}{"ok": true}
+	case "check_update":
+		go func() {
+			resp, err := http.Get(fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubRepo))
+			if err != nil {
+				wailsruntime.EventsEmit(a.ctx, "update:result", map[string]interface{}{"available": false, "error": err.Error()})
+				return
+			}
+			defer resp.Body.Close()
+			var rel struct {
+				TagName string `json:"tag_name"`
+				Body    string `json:"body"`
+				Assets  []struct {
+					Name               string `json:"name"`
+					BrowserDownloadURL string `json:"browser_download_url"`
+				} `json:"assets"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
+				wailsruntime.EventsEmit(a.ctx, "update:result", map[string]interface{}{"available": false, "error": err.Error()})
+				return
+			}
+			latestVer := strings.TrimPrefix(rel.TagName, "v")
+			needUpdate := compareVersion(latestVer, appVersion) > 0
+			var dlURL string
+			for _, asset := range rel.Assets {
+				if strings.Contains(asset.Name, "Setup") && strings.HasSuffix(asset.Name, ".exe") {
+					dlURL = asset.BrowserDownloadURL
+					break
+				}
+			}
+			wailsruntime.EventsEmit(a.ctx, "update:result", map[string]interface{}{
+				"available":   needUpdate,
+				"current":     appVersion,
+				"latest":      latestVer,
+				"downloadUrl": dlURL,
+				"notes":       rel.Body,
+			})
+		}()
+		return map[string]interface{}{"ok": true}
+	case "perform_update":
+		url, _ := params["url"].(string)
+		if url == "" {
+			return map[string]interface{}{"ok": false, "error": "no url"}
+		}
+		go func() {
+			wailsruntime.EventsEmit(a.ctx, "update:progress", map[string]interface{}{"stage": "downloading", "percent": 0})
+			resp, err := http.Get(url)
+			if err != nil {
+				wailsruntime.EventsEmit(a.ctx, "update:error", err.Error())
+				return
+			}
+			defer resp.Body.Close()
+			tmpFile := filepath.Join(os.TempDir(), "ChenFlow_Update.exe")
+			f, err := os.Create(tmpFile)
+			if err != nil {
+				wailsruntime.EventsEmit(a.ctx, "update:error", err.Error())
+				return
+			}
+			total := resp.ContentLength
+			written := int64(0)
+			buf := make([]byte, 32*1024)
+			for {
+				n, rerr := resp.Body.Read(buf)
+				if n > 0 {
+					f.Write(buf[:n])
+					written += int64(n)
+					if total > 0 {
+						wailsruntime.EventsEmit(a.ctx, "update:progress", map[string]interface{}{"stage": "downloading", "percent": int(written * 100 / total)})
+					}
+				}
+				if rerr == io.EOF {
+					break
+				}
+				if rerr != nil {
+					f.Close()
+					wailsruntime.EventsEmit(a.ctx, "update:error", rerr.Error())
+					return
+				}
+			}
+			f.Close()
+			wailsruntime.EventsEmit(a.ctx, "update:progress", map[string]interface{}{"stage": "installing", "percent": 100})
+			cmd := exec.Command(tmpFile, "/SILENT", "/SP-")
+			utils.HideWindow(cmd)
+			if err := cmd.Start(); err != nil {
+				wailsruntime.EventsEmit(a.ctx, "update:error", err.Error())
+				return
+			}
+			wailsruntime.EventsEmit(a.ctx, "update:done", "")
+			time.Sleep(500 * time.Millisecond)
+			os.Exit(0)
+		}()
 		return map[string]interface{}{"ok": true}
 	case "get_hotkey":
 		hk := a.store.GetHotkey()
@@ -1702,4 +1800,24 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 	}
 
 	return result
+}
+func compareVersion(v1, v2 string) int {
+	p1 := strings.Split(v1, ".")
+	p2 := strings.Split(v2, ".")
+	for i := 0; i < len(p1) || i < len(p2); i++ {
+		var n1, n2 int
+		if i < len(p1) {
+			n1, _ = strconv.Atoi(p1[i])
+		}
+		if i < len(p2) {
+			n2, _ = strconv.Atoi(p2[i])
+		}
+		if n1 > n2 {
+			return 1
+		}
+		if n1 < n2 {
+			return -1
+		}
+	}
+	return 0
 }

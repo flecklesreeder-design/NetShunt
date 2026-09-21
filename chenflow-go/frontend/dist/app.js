@@ -890,6 +890,43 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#imgPreviewOverlay').classList.remove('active');
   };
 
+  // 检查更新
+  $('#btnCheckUpdate').onclick = () => {
+    $('#updateStatus').textContent = t('update.checking');
+    $('#updateProgress').style.display = 'none';
+    api('check_update');
+  };
+  window.runtime.EventsOn('update:result', (data) => {
+    if (data.available) {
+      $('#updateStatus').innerHTML = t('update.found', data.latest) + ' <button class="btn btn-sm btn-accent" id="btnDoUpdate" style="margin-left:8px">' + t('update.download_btn') + '</button>';
+      $('#btnDoUpdate').onclick = () => {
+        $('#updateProgress').style.display = 'block';
+        $('#updateStatus').textContent = t('update.downloading');
+        api('perform_update', {url: data.downloadUrl});
+      };
+    } else if (data.error) {
+      $('#updateStatus').textContent = t('update.error') + ': ' + data.error;
+    } else {
+      $('#updateStatus').textContent = t('update.latest');
+    }
+  });
+  window.runtime.EventsOn('update:progress', (data) => {
+    if (data.stage === 'downloading') {
+      $('#updateStatus').textContent = t('update.downloading') + ' ' + data.percent + '%';
+      $('#updateProgressBar').style.width = data.percent + '%';
+    } else if (data.stage === 'installing') {
+      $('#updateStatus').textContent = t('update.installing');
+      $('#updateProgressBar').style.width = '100%';
+    }
+  });
+  window.runtime.EventsOn('update:error', (err) => {
+    $('#updateStatus').textContent = t('update.error') + ': ' + err;
+    $('#updateProgress').style.display = 'none';
+  });
+  window.runtime.EventsOn('update:done', () => {
+    $('#updateStatus').textContent = t('update.done');
+  });
+
 
   // 设置: 网卡监控
   $('#monitorSwitch').onchange = () => api('toggle_adapter_monitor', {enabled: $('#monitorSwitch').checked});

@@ -473,6 +473,15 @@
                 <p class="text-primary" style="margin:8px 0" data-i18n="about.developer">开发者：chen</p>
                 <p class="text-accent" style="font-size:12px" data-i18n="about.email">联系邮箱：924636096@qq.com</p>
                 <p class="text-muted" style="font-size:12px;margin:8px 0" data-i18n="about.license">MIT 协议开源 · 版权归属 chen</p>
+                <div style="margin:12px 0">
+                  <button class="btn btn-sm btn-accent" id="btnCheckUpdate" data-i18n="update.check_btn">检查更新</button>
+                  <span id="updateStatus" style="font-size:12px;margin-left:8px"></span>
+                </div>
+                <div id="updateProgress" style="display:none;margin:8px 0">
+                  <div class="apply-progress-bar-wrap" style="height:6px;border-radius:3px">
+                    <div class="apply-progress-bar" id="updateProgressBar" style="width:0%"></div>
+                  </div>
+                </div>
                 <div class="card risk-card" style="margin:16px 0">
                   <div class="text-danger" style="font-weight:600;padding:16px 16px 8px" data-i18n="about.risk_title">用户须知与风险告知</div>
                   <ul class="risk-list">
