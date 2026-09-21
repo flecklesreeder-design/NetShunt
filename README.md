@@ -87,7 +87,15 @@ chenflow-go/
 
 如果这个项目对你有帮助，欢迎请我喝杯咖啡 ☕
 
-关于页面内有微信 / 支付宝收款码，也可提 Issue 或 Star ⭐ 支持。
+<div align="center">
+
+| 微信支付 | 支付宝 |
+|:---:|:---:|
+| ![](screenshots/donate-wechat.jpg) | ![](screenshots/donate-alipay.jpg) |
+
+</div>
+
+也可提 Issue 或 Star ⭐ 支持。
 
 ## License
 
