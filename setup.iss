@@ -1,10 +1,10 @@
-﻿; NetShunt 3.3 Inno Setup 安装脚本
+﻿; NetShunt 3.3.1 Inno Setup 安装脚本
 ; 开发者：chen
 
 [Setup]
 AppId={{A1152A57-157E-4726-9D42-903325084A02}}
 AppName=NetShunt
-AppVersion=3.3
+AppVersion=3.3.1
 AppVerName=NetShunt
 AppPublisher=chen
 AppPublisherURL=mailto:924636096@qq.com
@@ -18,7 +18,7 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 OutputDir=installer_output
-OutputBaseFileName=NetShunt_3.3_Setup
+OutputBaseFileName=NetShunt_3.3.1_Setup
 SetupIconFile=logo.ico
 LicenseFile=license.txt
 InfoBeforeFile=before_install.txt
