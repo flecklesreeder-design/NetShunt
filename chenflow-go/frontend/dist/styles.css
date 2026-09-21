@@ -180,16 +180,20 @@ body {
 }
 .titlebar-logo { width: 18px; height: 18px; border-radius: 4px; filter: brightness(0.82) saturate(0.9); }
 .titlebar-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.3px; }
-.titlebar-controls { display: flex; gap: 4px; }
-.titlebar-btn {
-  width: 28px; height: 28px; border: none; border-radius: 6px;
-  background: transparent; color: var(--text-secondary);
-  font-size: 13px; cursor: pointer;
+.titlebar-controls { display: flex; gap: 8px; align-items: center; padding-right: 14px; }
+.win-btn {
+  width: 26px; height: 26px; border: none; border-radius: 50%;
+  background: rgba(255,255,255,0.08); cursor: pointer; padding: 0;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
 }
-.titlebar-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-.titlebar-close:hover { background: var(--danger); color: #fff; }
+.win-btn svg { opacity: 0.7; color: var(--text-secondary); transition: all 0.15s ease; }
+.win-btn:hover svg { opacity: 1; color: rgba(0,0,0,0.8); }
+.win-btn-min:hover { background: #febc2e; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08), 0 2px 8px rgba(254,188,46,0.35); }
+.win-btn-max:hover { background: #28c940; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08), 0 2px 8px rgba(40,201,64,0.35); }
+.win-btn-close:hover { background: #e81123; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.1), 0 1px 3px rgba(232,17,35,0.3); }
+.win-btn:hover svg { color: rgba(0,0,0,0.7); }
 
 /* ===== 悬浮滚动条 ===== */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -1204,3 +1208,12 @@ body, .card, #sidebar, .titlebar, .modal, .addr-console { transition: background
 }
 .update-toast.show { bottom: 20px; opacity: 1; }
 .update-toast-header { display: flex; justify-content: space-between; align-items: center; }
+.resize-edge { position: fixed; z-index: 9999; }
+.resize-top { top: 0; left: 6px; right: 6px; height: 4px; cursor: ns-resize; }
+.resize-bottom { bottom: 0; left: 6px; right: 6px; height: 4px; cursor: ns-resize; }
+.resize-left { top: 6px; bottom: 6px; left: 0; width: 4px; cursor: ew-resize; }
+.resize-right { top: 6px; bottom: 6px; right: 0; width: 4px; cursor: ew-resize; }
+.resize-tl { top: 0; left: 0; width: 8px; height: 8px; cursor: nwse-resize; }
+.resize-tr { top: 0; right: 0; width: 8px; height: 8px; cursor: nesw-resize; }
+.resize-bl { bottom: 0; left: 0; width: 8px; height: 8px; cursor: nesw-resize; }
+.resize-br { bottom: 0; right: 0; width: 8px; height: 8px; cursor: nwse-resize; }

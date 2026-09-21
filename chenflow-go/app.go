@@ -371,6 +371,12 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 	case "minimise_window":
 		wailsruntime.WindowMinimise(a.ctx)
 		return map[string]interface{}{"ok": true}
+	case "maximise_window":
+		wailsruntime.WindowMaximise(a.ctx)
+		return map[string]interface{}{"ok": true}
+	case "unmaximise_window":
+		wailsruntime.WindowUnmaximise(a.ctx)
+		return map[string]interface{}{"ok": true}
 	case "get_strategies":
 
 		list := make([]interface{}, len(a.strategies))

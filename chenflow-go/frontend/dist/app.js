@@ -814,6 +814,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 标题栏窗口控制
   $('#btnMinimize').onclick = () => api('minimise_window');
+  $('#btnMaximise').onclick = () => {
+    const btn = $('#btnMaximise');
+    if (btn.dataset.max === '1') {
+      api('unmaximise_window');
+      btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+      btn.dataset.max = '0';
+    } else {
+      api('maximise_window');
+      btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="3" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="3" y="1" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+      btn.dataset.max = '1';
+    }
+  };
   $('#btnCloseWin').onclick = handleCloseWindow;
 
   // 导航
