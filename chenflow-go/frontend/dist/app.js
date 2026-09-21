@@ -927,6 +927,42 @@ document.addEventListener('DOMContentLoaded', () => {
     $('#updateStatus').textContent = t('update.done');
   });
 
+  window.runtime.EventsOn('update:auto_notify', (data) => {
+    const notes = (data.notes || '').split('\n').filter(l => l.trim() && !l.startsWith('#')).slice(0, 4).map(l => l.replace(/^[-*]\s*/, '').trim());
+    const notesHtml = notes.map(l => '<div style="font-size:12px;color:var(--text-tertiary);margin:2px 0">· ' + l + '</div>').join('');
+    const toast = document.createElement('div');
+    toast.className = 'update-toast';
+    toast.innerHTML = `
+      <div class="update-toast-header">
+        <span style="font-size:14px;font-weight:600">🚀 ${t('update.new_version_available', data.latest)}</span>
+        <span class="update-toast-close" style="cursor:pointer;font-size:16px;opacity:0.5">✕</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin:4px 0 6px">v${data.current} → v${data.latest}</div>
+      ${notesHtml}
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn btn-sm btn-accent" id="toastUpdateBtn">${t('update.download_btn')}</button>
+        <button class="btn btn-sm" id="toastDismissBtn">${t('update.later_btn', '稍后')}</button>
+      </div>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 50);
+    const dismiss = () => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); };
+    toast.querySelector('.update-toast-close').onclick = dismiss;
+    toast.querySelector('#toastDismissBtn').onclick = dismiss;
+    toast.querySelector('#toastUpdateBtn').onclick = () => {
+      dismiss();
+      switchSubPage('about');
+      setTimeout(() => {
+        const btn = $('#btnCheckUpdate');
+        if (btn) btn.click();
+        setTimeout(() => {
+          const doBtn = $('#btnDoUpdate');
+          if (doBtn) doBtn.click();
+        }, 1500);
+      }, 300);
+    };
+    setTimeout(dismiss, 15000);
+  });
+
 
   // 设置: 网卡监控
   $('#monitorSwitch').onchange = () => api('toggle_adapter_monitor', {enabled: $('#monitorSwitch').checked});

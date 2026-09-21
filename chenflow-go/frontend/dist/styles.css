@@ -1194,3 +1194,13 @@ body, .card, #sidebar, .titlebar, .modal, .addr-console { transition: background
 ::-webkit-scrollbar-thumb:hover {
   background: var(--scrollbar-hover);
 }
+.update-toast {
+  position: fixed; bottom: -200px; right: 20px; width: 320px; z-index: 10000;
+  background: var(--bg-glass); backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px;
+  padding: 16px; box-shadow: 0 12px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+  transition: bottom 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease;
+  opacity: 0;
+}
+.update-toast.show { bottom: 20px; opacity: 1; }
+.update-toast-header { display: flex; justify-content: space-between; align-items: center; }

@@ -100,6 +100,7 @@ func (a *App) startup(ctx context.Context) {
 	go a.auditMonitor()
 	go a.cidrUpdateDaemon()
 	go a.adapterMonitorDaemon()
+	go a.autoCheckUpdate()
 	go func() {
 		hk := a.store.GetHotkey()
 		if hk == "" {
@@ -219,6 +220,43 @@ func (a *App) autoBindMACs() {
 		a.store.SetRole(ready[1].Name, string(models.RoleCNSplit), ready[1].MAC)
 	}
 	a.adapters.SyncRoles()
+}
+
+func (a *App) autoCheckUpdate() {
+	time.Sleep(3 * time.Second)
+	resp, err := http.Get(fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", githubRepo))
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	var rel struct {
+		TagName string `json:"tag_name"`
+		Body    string `json:"body"`
+		Assets  []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&rel); err != nil {
+		return
+	}
+	latestVer := strings.TrimPrefix(rel.TagName, "v")
+	if compareVersion(latestVer, appVersion) <= 0 {
+		return
+	}
+	var dlURL string
+	for _, asset := range rel.Assets {
+		if strings.Contains(asset.Name, "Setup") && strings.HasSuffix(asset.Name, ".exe") {
+			dlURL = asset.BrowserDownloadURL
+			break
+		}
+	}
+	wailsruntime.EventsEmit(a.ctx, "update:auto_notify", map[string]interface{}{
+		"current":     appVersion,
+		"latest":      latestVer,
+		"downloadUrl": dlURL,
+		"notes":       rel.Body,
+	})
 }
 
 func (a *App) applyRulesOnStartup() {
