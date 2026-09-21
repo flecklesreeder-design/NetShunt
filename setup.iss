@@ -69,6 +69,14 @@ begin
     DelTree(ExpandConstant('{app}'), True, True, True);
   end;
 end;
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec(ExpandConstant('{cmd}'), '/C taskkill /F /IM NetShunt.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(2000);
+  Result := '';
+end;
 function NeedsWebView2: Boolean;
 begin
   Result := True;
