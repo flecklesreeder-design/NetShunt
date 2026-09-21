@@ -2,7 +2,7 @@
 ; 开发者：chen
 
 [Setup]
-AppId={{A1152A57-157E-4726-9D42-903325084A02}
+AppId={{A1152A57-157E-4726-9D42-903325084A02}}
 AppName=NetShunt
 AppVersion=3.3
 AppVerName=NetShunt
@@ -11,7 +11,7 @@ AppPublisherURL=mailto:924636096@qq.com
 AppSupportURL=mailto:924636096@qq.com
 DefaultDirName={autopf}\NetShunt
 DefaultGroupName=NetShunt
-CloseApplications=yes
+CloseApplications=force
 UninstallDisplayIcon={app}\NetShunt.exe
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -70,11 +70,7 @@ begin
   end;
 end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
-var
-  ResultCode: Integer;
 begin
-  Exec(ExpandConstant('{cmd}'), '/C taskkill /F /IM NetShunt.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Sleep(2000);
   Result := '';
 end;
 function NeedsWebView2: Boolean;
