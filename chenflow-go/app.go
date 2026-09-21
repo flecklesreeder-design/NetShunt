@@ -58,7 +58,7 @@ type App struct {
 }
 
 const appVersion = "3.1"
-const githubRepo = "flecklesreeder-design/chenflow"
+const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
 	store := config.New()
