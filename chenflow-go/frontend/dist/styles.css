@@ -178,7 +178,7 @@ body {
   --wails-draggable: drag;
   flex: 1; height: 100%;
 }
-.titlebar-logo { width: 18px; height: 18px; border-radius: 4px; }
+.titlebar-logo { width: 18px; height: 18px; border-radius: 4px; filter: brightness(0.82) saturate(0.9); }
 .titlebar-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.3px; }
 .titlebar-controls { display: flex; gap: 4px; }
 .titlebar-btn {
@@ -213,7 +213,7 @@ body {
   z-index: 10;
 }
 .sidebar-logo { margin-top: 20px; margin-bottom: 4px; }
-.sidebar-logo img { width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.sidebar-logo img { width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); filter: brightness(0.82) saturate(0.9); }
 .sidebar-title { font-size: 20px; font-weight: 700; color: var(--text-primary); margin-top: 8px; letter-spacing: -0.5px; }
 .sidebar-subtitle { font-size: 11px; color: var(--text-tertiary); margin-bottom: 20px; letter-spacing: 0.3px; }
 .sidebar-nav { width: 100%; padding: 0 10px; display: flex; flex-direction: column; gap: 2px; }
@@ -508,7 +508,7 @@ input[type="checkbox"]:checked::after { content: '✓'; position: absolute; colo
 
 /* ===== 关于页 ===== */
 .about-page { text-align: center; padding: 24px; }
-.about-logo { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 8px; box-shadow: var(--shadow-md); }
+.about-logo { width: 64px; height: 64px; border-radius: 16px; margin-bottom: 8px; box-shadow: var(--shadow-md); filter: brightness(0.82) saturate(0.9); }
 .risk-list { list-style: none; padding: 0 16px 16px; font-size: 12px; color: var(--text-secondary); }
 .risk-list li { padding: 2px 0; }
 
