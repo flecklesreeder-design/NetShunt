@@ -1,4 +1,4 @@
-1 VERSIONINFO
+﻿1 VERSIONINFO
 FILEVERSION 3,0,0,0
 PRODUCTVERSION 3,0,0,0
 FILEOS 0x40004
@@ -9,13 +9,13 @@ FILETYPE 0x1
     BLOCK "080404B0"
     {
       VALUE "CompanyName", "chen"
-      VALUE "FileDescription", "ChenFlow"
-      VALUE "FileVersion", "3.0"
-      VALUE "InternalName", "ChenFlow"
+      VALUE "FileDescription", "NetShunt"
+      VALUE "FileVersion", "3.1"
+      VALUE "InternalName", "NetShunt"
       VALUE "LegalCopyright", "Copyright (c) chen"
-      VALUE "OriginalFilename", "ChenFlow.exe"
-      VALUE "ProductName", "ChenFlow"
-      VALUE "ProductVersion", "3.0"
+      VALUE "OriginalFilename", "NetShunt.exe"
+      VALUE "ProductName", "NetShunt"
+      VALUE "ProductVersion", "3.1"
     }
   }
   BLOCK "VarFileInfo"

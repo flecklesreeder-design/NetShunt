@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-const singleInstanceMutexName = "ChenFlow_SingleInstance_Mutex_v3"
+const singleInstanceMutexName = "NetShunt_SingleInstance_Mutex_v3"
 
 var singleInstanceMutex windows.Handle
 
@@ -37,13 +37,13 @@ func closeSingleInstanceMutex() {
 }
 
 func killExistingInstance() {
-	hwnd := findChenFlowWindow()
+	hwnd := findNetShuntWindow()
 	if hwnd != 0 {
 		sendCloseMessage(hwnd)
 	}
 }
 
-func findChenFlowWindow() uintptr {
+func findNetShuntWindow() uintptr {
 	var found uintptr
 
 	user32 := syscall.NewLazyDLL("user32.dll")
@@ -56,7 +56,7 @@ func findChenFlowWindow() uintptr {
 		getWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&title[0])), 256)
 		winTitle := windows.UTF16ToString(title[:])
 		visible, _, _ := isWindowVisible.Call(hwnd)
-		if visible != 0 && winTitle == "ChenFlow" {
+		if visible != 0 && winTitle == "NetShunt" {
 			found = hwnd
 			return 0
 		}
@@ -74,7 +74,7 @@ func sendCloseMessage(hwnd uintptr) {
 }
 
 func bringWindowToFront() bool {
-	hwnd := findChenFlowWindow()
+	hwnd := findNetShuntWindow()
 	if hwnd == 0 {
 		return false
 	}
@@ -87,5 +87,5 @@ func bringWindowToFront() bool {
 }
 
 func singleInstanceWarnAndExit() {
-	fmt.Fprintln(os.Stderr, "另一个 ChenFlow 实例正在运行，已尝试将其关闭。")
+	fmt.Fprintln(os.Stderr, "另一个 NetShunt 实例正在运行，已尝试将其关闭。")
 }

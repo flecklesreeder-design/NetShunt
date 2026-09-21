@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	_ "embed"
@@ -26,8 +26,8 @@ func startTray(onShow, onQuit func()) {
 
 func onTrayReady() {
 	systray.SetIcon(trayIconBytes)
-	systray.SetTitle("ChenFlow")
-	systray.SetTooltip("ChenFlow 网络分流")
+	systray.SetTitle("NetShunt")
+	systray.SetTooltip("NetShunt 网络分流")
 
 	trayMenuItemShow = systray.AddMenuItem("显示窗口", "显示主窗口")
 	systray.AddSeparator()

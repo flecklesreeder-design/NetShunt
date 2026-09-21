@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"fmt"
@@ -64,15 +64,15 @@ func ensureWebView2() bool {
 	bootstrapper := findBootstrapper()
 
 	if bootstrapper != "" {
-		msg := "ChenFlow 需要 WebView2 Runtime 才能正常运行，但系统未检测到。\n\n点击「是」立即安装（需要联网下载），安装完成后将自动启动 ChenFlow。\n点击「否」退出程序。"
-		ret := showMessageBox(msg, "ChenFlow - WebView2 缺失", 0x00000004|0x00000030)
+		msg := "NetShunt 需要 WebView2 Runtime 才能正常运行，但系统未检测到。\n\n点击「是」立即安装（需要联网下载），安装完成后将自动启动 NetShunt。\n点击「否」退出程序。"
+		ret := showMessageBox(msg, "NetShunt - WebView2 缺失", 0x00000004|0x00000030)
 		if ret != 6 {
 			return false
 		}
 		cmd := exec.Command(bootstrapper, "/silent")
 		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 		if err := cmd.Run(); err != nil {
-			showMessageBox(fmt.Sprintf("WebView2 安装失败: %v\n\n请手动从微软官网下载安装。", err), "ChenFlow", 0x00000030)
+			showMessageBox(fmt.Sprintf("WebView2 安装失败: %v\n\n请手动从微软官网下载安装。", err), "NetShunt", 0x00000030)
 			return false
 		}
 		for i := 0; i < 30; i++ {
@@ -81,11 +81,11 @@ func ensureWebView2() bool {
 				return true
 			}
 		}
-		showMessageBox("WebView2 安装似乎未完成，请重试或手动安装。", "ChenFlow", 0x00000030)
+		showMessageBox("WebView2 安装似乎未完成，请重试或手动安装。", "NetShunt", 0x00000030)
 		return false
 	}
 
-	msg := "ChenFlow 需要 WebView2 Runtime 才能正常运行，但系统未检测到。\n\n请从微软官网下载安装 WebView2 Runtime 后重试：\nhttps://developer.microsoft.com/en-us/microsoft-edge/webview2/\n\n点击「确定」退出程序。"
-	showMessageBox(msg, "ChenFlow - WebView2 缺失", 0x00000030)
+	msg := "NetShunt 需要 WebView2 Runtime 才能正常运行，但系统未检测到。\n\n请从微软官网下载安装 WebView2 Runtime 后重试：\nhttps://developer.microsoft.com/en-us/microsoft-edge/webview2/\n\n点击「确定」退出程序。"
+	showMessageBox(msg, "NetShunt - WebView2 缺失", 0x00000030)
 	return false
 }

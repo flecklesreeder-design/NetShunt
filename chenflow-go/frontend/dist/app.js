@@ -1,4 +1,4 @@
-/* ==================== ChenFlow 前端应用逻辑 ==================== */
+﻿/* ==================== NetShunt 前端应用逻辑 ==================== */
 /* 页面切换 · HTTP API 桥接 · 轮询实时数据 · 事件处理 */
 
 
@@ -544,7 +544,7 @@ function downloadTemplate() {
   const blob = new Blob(['\ufeff' + text], {type: 'text/plain;charset=utf-8'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'chenflow_rules_template.txt';
+  a.download = 'NetShunt_rules_template.txt';
   a.click();
 }
 
@@ -557,7 +557,7 @@ async function exportRules() {
     const blob = new Blob(['\ufeff' + text], {type: 'text/plain;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'chenflow_rules_export.txt';
+    a.download = 'NetShunt_rules_export.txt';
     a.click();
   } catch (e) { showToast(t('rule.export_fail', e.message||e)); }
 }
@@ -623,7 +623,7 @@ async function exportRules() {
     const blob = new Blob(['\ufeff' + csv], {type: 'text/csv;charset=utf-8'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'chenflow_rules_export.csv';
+    a.download = 'NetShunt_rules_export.csv';
     a.click();
   } catch (e) { showToast(t('rule.export_fail', e.message||e)); }
 }

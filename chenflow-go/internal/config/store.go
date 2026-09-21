@@ -1,4 +1,4 @@
-package config
+﻿package config
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-const AppDirName = "ChenFlow"
+const AppDirName = "NetShunt"
 
 var (
 	LegacyEthMAC  = "E0-BE-03-5F-77-B8"

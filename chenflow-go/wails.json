@@ -1,8 +1,8 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
-  "name": "ChenFlow",
-  "version": "3.0",
-  "outputfilename": "chenflow-go",
+  "name": "NetShunt",
+  "version": "3.1",
+  "outputfilename": "NetShunt",
   "frontend:install": "",
   "frontend:build": "",
   "frontend:dev:watcher": "",
@@ -13,10 +13,10 @@
   },
   "info": {
     "companyName": "chen",
-    "productName": "ChenFlow",
-    "productVersion": "3.0",
+    "productName": "NetShunt",
+    "productVersion": "3.1",
     "copyright": "Copyright © chen",
-    "comments": "ChenFlow - 网络分流管理工具",
-    "fileVersion": "3.0.0.0"
+    "comments": "NetShunt - 网络分流管理工具",
+    "fileVersion": "3.1.0.0"
   }
 }

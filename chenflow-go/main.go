@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"embed"
@@ -29,7 +29,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "ChenFlow",
+		Title:     "NetShunt",
 		Width:     1200,
 		Height:    850,
 		Frameless: true,

@@ -1,4 +1,4 @@
-// ===== ChenFlow i18n =====
+﻿// ===== NetShunt i18n =====
 const I18N = {
   zh: {
     'nav.dashboard': '分流控制',
@@ -7,10 +7,10 @@ const I18N = {
     'nav.traffic': '流量监控',
     'nav.analyzer': '流量分析',
     'nav.settings': '系统设置',
-    'sidebar.subtitle': 'Network Splitter v3.0',
+    'sidebar.subtitle': 'Network Splitter v3.1',
     'sidebar.hotkey_hint': '快捷键: CTRL+ALT+H<br>(呼出/隐藏面板)',
     'sidebar.emergency_reset': '安全重置',
-    'home.status_ready': 'ChenFlow v3.0 引擎就绪 | 网卡角色化分流',
+    'home.status_ready': 'NetShunt v3.1 引擎就绪 | 网卡角色化分流',
     'home.apply': '应用分流',
     'home.apply_desc': '下发策略到路由表',
     'home.guard': '自愈守护',
@@ -176,7 +176,7 @@ const I18N = {
     'monitor.loading': '加载中...',
     'monitor.load_fail': '加载失败: {0}',
     'about.title': '关于软件',
-    'about.version': '版本 3.0（网卡角色化分流）',
+    'about.version': '版本 3.1（网卡角色化分流）',
     'about.developer': '开发者：chen',
     'about.email': '联系邮箱：924636096@qq.com',
     'about.license': 'MIT 协议开源 · 版权归属 chen',
@@ -227,7 +227,7 @@ const I18N = {
     'rule.apply_strategy': '应用规则',
     'rule.applying_strategy': '正在应用策略...',
     'rule.template': '# 规则导入模板\n# 支持两种格式：\n#   1) 每行一个 URL 或 IP 地址（自动识别类型，使用默认网卡）\n#   2) 类型|目标|指定网卡\n# # 开头为注释，空行跳过\n#\n# 示例：\nbaidu.com\nqq.com\n114.114.114.114\nURL|google.com|WLAN\nIPv4|8.8.8.8|以太网\n',
-    'rule.export_header': '# ChenFlow 规则导出\n',
+    'rule.export_header': '# NetShunt 规则导出\n',
     'rule.import_fail': '导入失败:',
     'rule.import_ok': '导入完成：成功 {0} 条，跳过 {1} 条。\n请点击"应用所有规则"按钮使规则生效。',
     'rule.export_fail': '导出失败: {0}',
@@ -272,7 +272,7 @@ const I18N = {
     'strategy.desc.local': '手动配置 CIDR/IP 地址列表，适合公司内网、特定服务等自定义分流场景。',
     'addr_mgr.console_hint': '# 已加入 {0} 条地址规则\n# 请到"流量策略管理器"点击"应用所有规则"生效\n\n{1}',
     'addr_mgr.import_ok': '成功导入 {0} 条地址规则。\n请到"流量策略管理器"点击"应用所有规则"生效。',
-    'addr_mgr.template': '# ChenFlow 地址列表\n# 格式：每行一个 URL 或 IP， 开头为注释\n# 导入后点击"应用所有规则"生效\n#\n# 示例：\nbaidu.com\nqq.com\n114.114.114.114\n8.8.8.8',
+    'addr_mgr.template': '# NetShunt 地址列表\n# 格式：每行一个 URL 或 IP， 开头为注释\n# 导入后点击"应用所有规则"生效\n#\n# 示例：\nbaidu.com\nqq.com\n114.114.114.114\n8.8.8.8',
   },
   en: {
     'nav.dashboard': 'Dashboard',
@@ -281,10 +281,10 @@ const I18N = {
     'nav.traffic': 'Traffic',
     'nav.analyzer': 'Analyzer',
     'nav.settings': 'Settings',
-    'sidebar.subtitle': 'Network Splitter v3.0',
+    'sidebar.subtitle': 'Network Splitter v3.1',
     'sidebar.hotkey_hint': 'Hotkey: CTRL+ALT+H<br>(Toggle panel)',
     'sidebar.emergency_reset': 'Safe Reset',
-    'home.status_ready': 'ChenFlow v3.0 engine ready | Adapter role-based routing',
+    'home.status_ready': 'NetShunt v3.1 engine ready | Adapter role-based routing',
     'home.apply': 'Apply',
     'home.apply_desc': 'Push policies to route table',
     'home.guard': 'Self-Heal',
@@ -450,7 +450,7 @@ const I18N = {
     'monitor.loading': 'Loading...',
     'monitor.load_fail': 'Load failed: {0}',
     'about.title': 'About',
-    'about.version': 'Version 3.0 (adapter role-based routing)',
+    'about.version': 'Version 3.1 (adapter role-based routing)',
     'about.developer': 'Developer: chen',
     'about.email': 'Email: 924636096@qq.com',
     'about.license': 'MIT License · Copyright © chen',
@@ -501,7 +501,7 @@ const I18N = {
     'rule.apply_strategy': 'Apply Rules',
     'rule.applying_strategy': 'Applying strategy...',
     'rule.template': '# Rule import template\n# Two formats supported:\n#   1) One URL or IP per line (auto-detect type, default adapter)\n#   2) Type|Target|Adapter\n# # Lines starting with # are comments, blank lines skipped\n#\n# Examples:\nbaidu.com\nqq.com\n114.114.114.114\nURL|google.com|WLAN\nIPv4|8.8.8.8|Ethernet\n',
-    'rule.export_header': '# ChenFlow rules export\n',
+    'rule.export_header': '# NetShunt rules export\n',
     'rule.import_fail': 'Import failed:',
     'rule.import_ok': 'Import done: {0} ok, {1} skipped.\nClick "Apply All Rules" to take effect.',
     'rule.export_fail': 'Export failed: {0}',
@@ -546,7 +546,7 @@ const I18N = {
     'strategy.desc.local': 'Manually configure CIDR/IP list. Suitable for corporate LAN or custom routing.',
     'addr_mgr.console_hint': '# Added {0} address rules\n# Go to "Strategy Manager" and click "Apply All Rules" to take effect\n\n{1}',
     'addr_mgr.import_ok': 'Imported {0} address rules.\nGo to "Strategy Manager" and click "Apply All Rules" to take effect.',
-    'addr_mgr.template': '# ChenFlow address list\n# Format: one URL or IP per line, # for comments\n# After import, click "Apply All Rules" to take effect\n#\n# Examples:\nbaidu.com\nqq.com\n114.114.114.114\n8.8.8.8',
+    'addr_mgr.template': '# NetShunt address list\n# Format: one URL or IP per line, # for comments\n# After import, click "Apply All Rules" to take effect\n#\n# Examples:\nbaidu.com\nqq.com\n114.114.114.114\n8.8.8.8',
   }
 };
 

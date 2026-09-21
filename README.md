@@ -1,6 +1,6 @@
-<div align="center">
+﻿<div align="center">
 
-# ChenFlow
+# NetShunt
 
 网卡角色化网络分流管理工具
 
@@ -8,7 +8,7 @@
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![platform](https://img.shields.io/badge/platform-Windows-green.svg)]()
-[![version](https://img.shields.io/badge/version-3.0-orange.svg)]()
+[![version](https://img.shields.io/badge/version-3.1-orange.svg)]()
 
 </div>
 
@@ -35,7 +35,7 @@
 
 ### 安装包（推荐）
 
-下载 `ChenFlow_3.0_Setup.exe`，双击安装即可。安装包已内置 WebView2 Runtime Bootstrapper，无需额外环境。
+下载 `NetShunt_3.0_Setup.exe`，双击安装即可。安装包已内置 WebView2 Runtime Bootstrapper，无需额外环境。
 
 ### 从源码构建
 
@@ -43,11 +43,11 @@
 # 需要 Go 1.26+ 和 Wails CLI
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-git clone https://github.com/flecklesreeder-design/chenflow.git
-cd chenflow/chenflow-go
+git clone https://github.com/flecklesreeder-design/NetShunt.git
+cd NetShunt/NetShunt-go
 
 wails build -clean
-# 产物在 build/bin/chenflow-go.exe
+# 产物在 build/bin/NetShunt-go.exe
 ```
 
 ## 使用
@@ -70,7 +70,7 @@ wails build -clean
 ## 项目结构
 
 ```
-chenflow-go/
+NetShunt-go/
 ├── app.go                    # API 桥接层
 ├── main.go                   # Wails 入口
 ├── internal/

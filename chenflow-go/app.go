@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"context"
@@ -57,7 +57,7 @@ type App struct {
 	hidden            bool
 }
 
-const appVersion = "3.0"
+const appVersion = "3.1"
 const githubRepo = "flecklesreeder-design/chenflow"
 
 func NewApp() *App {
@@ -421,7 +421,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 				return
 			}
 			defer resp.Body.Close()
-			tmpFile := filepath.Join(os.TempDir(), "ChenFlow_Update.exe")
+			tmpFile := filepath.Join(os.TempDir(), "NetShunt_Update.exe")
 			f, err := os.Create(tmpFile)
 			if err != nil {
 				wailsruntime.EventsEmit(a.ctx, "update:error", err.Error())
@@ -1340,7 +1340,7 @@ func (a *App) adapterMonitorDaemon() {
 					if a.ctx != nil {
 						wailsruntime.EventsEmit(a.ctx, "adapter_disconnected", adp)
 					}
-					showWindowsNotification("ChenFlow 网卡断开", fmt.Sprintf("网卡 [%s] 已断开连接！分流策略可能受影响。", adp))
+					showWindowsNotification("NetShunt 网卡断开", fmt.Sprintf("网卡 [%s] 已断开连接！分流策略可能受影响。", adp))
 				}
 			}
 			if hadPrev && !prevUp && currentUp {
@@ -1348,7 +1348,7 @@ func (a *App) adapterMonitorDaemon() {
 				if a.ctx != nil {
 					wailsruntime.EventsEmit(a.ctx, "adapter_connected", adp)
 				}
-				showWindowsNotification("ChenFlow 网卡恢复", fmt.Sprintf("网卡 [%s] 已恢复连接。", adp))
+				showWindowsNotification("NetShunt 网卡恢复", fmt.Sprintf("网卡 [%s] 已恢复连接。", adp))
 			}
 			a.adapterLastStatus[adp] = currentUp
 		}
