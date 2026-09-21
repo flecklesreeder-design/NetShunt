@@ -1,0 +1,25 @@
+1 VERSIONINFO
+FILEVERSION 3,0,0,0
+PRODUCTVERSION 3,0,0,0
+FILEOS 0x40004
+FILETYPE 0x1
+{
+  BLOCK "StringFileInfo"
+  {
+    BLOCK "080404B0"
+    {
+      VALUE "CompanyName", "chen"
+      VALUE "FileDescription", "ChenFlow"
+      VALUE "FileVersion", "3.0"
+      VALUE "InternalName", "ChenFlow"
+      VALUE "LegalCopyright", "Copyright (c) chen"
+      VALUE "OriginalFilename", "ChenFlow.exe"
+      VALUE "ProductName", "ChenFlow"
+      VALUE "ProductVersion", "3.0"
+    }
+  }
+  BLOCK "VarFileInfo"
+  {
+    VALUE "Translation", 0x804, 0x4B0
+  }
+}

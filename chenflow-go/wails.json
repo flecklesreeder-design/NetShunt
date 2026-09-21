@@ -1,0 +1,22 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "ChenFlow",
+  "version": "3.0",
+  "outputfilename": "chenflow-go",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "chen",
+    "email": "924636096@qq.com"
+  },
+  "info": {
+    "companyName": "chen",
+    "productName": "ChenFlow",
+    "productVersion": "3.0",
+    "copyright": "Copyright © chen",
+    "comments": "ChenFlow - 网络分流管理工具",
+    "fileVersion": "3.0.0.0"
+  }
+}

@@ -1,0 +1,52 @@
+# ===== Python 原版（不上传） =====
+net_splitter/
+web/
+__pycache__/
+*.pyc
+*.pyo
+*.py
+*.spec
+*.spec.bak
+venv/
+.venv/
+*.egg-info/
+
+# ===== 构建产物 / 二进制 =====
+*.exe
+*.syso
+*.dll
+*.obj
+*.pdb
+build/
+chenflow-go/build/bin/
+chenflow-go/build/cache/
+
+# ===== 安装包产物 =====
+installer_output/
+/dist/
+
+# ===== 运行时数据 =====
+data/
+chenflow-go/data/
+
+# ===== IDE / 编辑器 =====
+.codeartsdoer/
+.arts/
+.vscode/
+.idea/
+*.swp
+*~
+
+# ===== 大型外部工具 / 依赖 =====
+rcedit.exe
+inno_setup.exe
+MicrosoftEdgeWebview2Setup.exe
+ChenFlow_go_source.zip
+
+# ===== 杂项 =====
+nul
+nul.baiduyun.uploading.cfg
+*.log
+*.tmp
+*.bat
+chenflow-go/*.jpg
