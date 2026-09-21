@@ -450,17 +450,9 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			}
 			f.Close()
 			wailsruntime.EventsEmit(a.ctx, "update:progress", map[string]interface{}{"stage": "installing", "percent": 100})
-			cmd := exec.Command(tmpFile, "/VERYSILENT", "/SP-", "/NORESTART", "/NOCANCEL")
+			cmd := exec.Command(tmpFile, "/VERYSILENT", "/SP-", "/NORESTART", "/NOCANCEL", "/CLOSEAPPLICATIONS")
 			utils.HideWindow(cmd)
-			if err := cmd.Run(); err != nil {
-				wailsruntime.EventsEmit(a.ctx, "update:error", err.Error())
-				return
-			}
-			newExe := filepath.Join(os.Getenv("ProgramFiles"), "NetShunt", "NetShunt.exe")
-			if _, err := os.Stat(newExe); err != nil {
-				newExe = filepath.Join(os.Getenv("ProgramFiles(x86)"), "NetShunt", "NetShunt.exe")
-			}
-			exec.Command(newExe).Start()
+			cmd.Start()
 			os.Exit(0)
 		}()
 		return map[string]interface{}{"ok": true}

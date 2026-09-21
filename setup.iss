@@ -2,6 +2,7 @@
 ; 开发者：chen
 
 [Setup]
+AppId={{A1152A57-157E-4726-9D42-903325084A02}
 AppName=NetShunt
 AppVersion=3.3
 AppVerName=NetShunt
@@ -10,6 +11,7 @@ AppPublisherURL=mailto:924636096@qq.com
 AppSupportURL=mailto:924636096@qq.com
 DefaultDirName={autopf}\NetShunt
 DefaultGroupName=NetShunt
+CloseApplications=yes
 UninstallDisplayIcon={app}\NetShunt.exe
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -44,6 +46,7 @@ Name: "{autodesktop}\NetShunt"; Filename: "{app}\NetShunt.exe"; Tasks: desktopic
 Filename: "{app}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent"; StatusMsg: "正在安装 WebView2 Runtime..."; Flags: skipifdoesntexist; Check: NeedsWebView2
 Filename: "{cmd}"; Parameters: "/C del /a /q ""%localappdata%\IconCache.db"" 2>nul & ie4uinit.exe -show"; StatusMsg: "正在刷新图标缓存..."; Flags: runhidden
 Filename: "{app}\NetShunt.exe"; Description: "启动 NetShunt"; Flags: nowait postinstall skipifsilent shellexec runascurrentuser
+Filename: "{app}\NetShunt.exe"; Flags: nowait skipifnotsilent shellexec runascurrentuser
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/C taskkill /F /IM NetShunt.exe"; Flags: runhidden nowait; RunOnceId: "KillNetShunt"
