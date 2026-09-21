@@ -44,7 +44,7 @@ Name: "{autodesktop}\NetShunt"; Filename: "{app}\NetShunt.exe"; Tasks: desktopic
 
 [Run]
 Filename: "{app}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent"; StatusMsg: "正在安装 WebView2 Runtime..."; Flags: skipifdoesntexist; Check: NeedsWebView2
-Filename: "{cmd}"; Parameters: "/C del /a /q ""%localappdata%\IconCache.db"" 2>nul & ie4uinit.exe -show"; StatusMsg: "正在刷新图标缓存..."; Flags: runhidden
+Filename: "{cmd}"; Parameters: "/C del /a /f /q ""%localappdata%\IconCache.db"" ""%localappdata%\Microsoft\Windows\Explorer\iconcache_*"" 2>nul & ie4uinit.exe -show"; StatusMsg: "正在刷新图标缓存..."; Flags: runhidden
 Filename: "{app}\NetShunt.exe"; Description: "启动 NetShunt"; Flags: nowait postinstall skipifsilent shellexec runascurrentuser
 Filename: "{app}\NetShunt.exe"; Flags: nowait skipifnotsilent shellexec runascurrentuser
 

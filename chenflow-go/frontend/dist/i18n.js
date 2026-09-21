@@ -176,7 +176,7 @@ const I18N = {
     'monitor.loading': '加载中...',
     'monitor.load_fail': '加载失败: {0}',
     'about.title': '关于软件',
-    'about.version': '版本 3.3（网卡角色化分流）',
+    'about.version': '版本 3.3.1（网卡角色化分流）',
     'about.developer': '开发者：chen',
     'about.email': '联系邮箱：924636096@qq.com',
     'about.license': 'MIT 协议开源 · 版权归属 chen',
