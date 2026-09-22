@@ -59,7 +59,7 @@ type App struct {
 	injectedRoutes    sync.Map
 }
 
-const appVersion = "3.3.9"
+const appVersion = "3.4.0"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -1755,6 +1755,35 @@ func (a *App) loadStrategyCacheFile(path string) []string {
 	}
 	return result
 }
+
+func (a *App) getSystemRouteSet() map[string]bool {
+	result := make(map[string]bool)
+	out := utils.RunCmd("route print -4", 10)
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+		dst := fields[0]
+		mask := fields[1]
+		gw := fields[2]
+		if !strings.Contains(dst, ".") || dst == "Destination" || dst == "目标网络" {
+			continue
+		}
+		maskIP := net.ParseIP(mask)
+		if maskIP == nil {
+			continue
+		}
+		mask4 := maskIP.To4()
+		if mask4 == nil {
+			continue
+		}
+		ones, _ := net.IPMask(mask4).Size()
+		result[fmt.Sprintf("%s/%d|%s", dst, ones, gw)] = true
+	}
+	return result
+}
+
 func (a *App) handleApplyStrategies() map[string]interface{} {
 	a.mu.RLock()
 	strategies := a.strategies
@@ -1765,6 +1794,9 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 	for _, p := range profiles {
 		profileMap[p.Name] = p
 	}
+
+	systemRoutes := a.getSystemRouteSet()
+	a.log(fmt.Sprintf("系统路由表扫描完成: %d 条已有路由", len(systemRoutes)), "info")
 
 	totalRoutes := 0
 	for _, s := range strategies {
@@ -1829,9 +1861,10 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 		if s.IsFallback() {
 			currentRoute++
 			routeKey := fmt.Sprintf("0.0.0.0/0|%d|%s", idx, gw)
-			if _, ok := a.injectedRoutes.Load(routeKey); ok {
+			sysKey := fmt.Sprintf("0.0.0.0/0|%s", gw)
+			if _, ok := a.injectedRoutes.Load(routeKey); ok || systemRoutes[sysKey] {
 				applied++
-
+				a.injectedRoutes.Store(routeKey, true)
 				messages = append(messages, fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name))
 				a.log(fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name), "info")
 				continue
@@ -1903,6 +1936,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 			}
 			var cmd string
 			var routeKey string
+			var sysKey string
 			if strings.Contains(line, "/") {
 				parts := strings.SplitN(line, "/", 2)
 				ip := parts[0]
@@ -1914,13 +1948,16 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 				mask := utils.CIDRToNetmask(bits)
 				cmd = fmt.Sprintf("route add %s mask %s %s metric 1 IF %d", ip, mask, gw, idx)
 				routeKey = fmt.Sprintf("%s/%d|%d|%s", ip, bits, idx, gw)
+				sysKey = fmt.Sprintf("%s/%d|%s", ip, bits, gw)
 			} else {
 				cmd = fmt.Sprintf("route add %s mask 255.255.255.255 %s metric 1 IF %d", line, gw, idx)
 				routeKey = fmt.Sprintf("%s/32|%d|%s", line, idx, gw)
+				sysKey = fmt.Sprintf("%s/32|%s", line, gw)
 			}
-			if _, ok := a.injectedRoutes.Load(routeKey); ok {
+			if _, ok := a.injectedRoutes.Load(routeKey); ok || systemRoutes[sysKey] {
 				skipped++
 				currentRoute++
+				a.injectedRoutes.Store(routeKey, true)
 				continue
 			}
 			out := utils.RunCmd(cmd, 10)
