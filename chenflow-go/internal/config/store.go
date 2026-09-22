@@ -2,6 +2,7 @@
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,7 +98,9 @@ func (s *Store) loadAppConfig() {
 }
 
 func (s *Store) saveAppConfig() {
-	writeJSON(s.p("app_config.json"), s.appConfig)
+	if err := writeJSON(s.p("app_config.json"), s.appConfig); err != nil {
+		fmt.Println("[Store] saveAppConfig failed:", err)
+	}
 }
 
 func (s *Store) GetRoles() map[string]string {

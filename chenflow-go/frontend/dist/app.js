@@ -158,14 +158,15 @@ function hideApplyProgress() {
 }
 async function applyRoles() {
   const btn = $('#btnApply');
-  if (btn) btn.classList.add('tool-card-loading');
+  if (btn) { btn.classList.add('tool-card-loading'); btn.disabled = true; }
   showApplyProgress();
   try {
     await api('apply_strategies');
   } catch (e) {
     hideApplyProgress();
     showToast(t('common.apply_fail', e.message || e));
-    if (btn) btn.classList.remove('tool-card-loading');
+  } finally {
+    if (btn) { btn.classList.remove('tool-card-loading'); btn.disabled = false; }
   }
 }
 
@@ -176,6 +177,7 @@ async function toggleGuard() {
 
 function clearLog() {
   $('#logArea').textContent = '';
+  _lastLogLen = 0;
 }
 
 // ===== 流量监控 =====
@@ -449,7 +451,7 @@ async function loadAdapterMonitor() {
 }
 
 async function saveAdapterMonitor() {
-  const monitored = $$('#adapterMonitorList input[type="checkbox"]:checked')
+  const monitored = Array.from($$('#adapterMonitorList input[type="checkbox"]:checked'))
     .map(cb => cb.dataset.name);
   await api('save_adapter_monitor', {enabled: $('#monitorSwitch').checked, monitored});
 }
@@ -548,19 +550,6 @@ function downloadTemplate() {
   a.click();
 }
 
-async function exportRules() {
-  try {
-    const res = await api('get_rules');
-    const rules = res.rules || [];
-    let text = t('rule.export_header');
-    rules.forEach(r => { text += `${r.type}|${r.target}|${r.adapter}\n`; });
-    const blob = new Blob(['\ufeff' + text], {type: 'text/plain;charset=utf-8'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'NetShunt_rules_export.txt';
-    a.click();
-  } catch (e) { showToast(t('rule.export_fail', e.message||e)); }
-}
 
 async function importRules() {
   const input = document.createElement('input');
@@ -665,7 +654,7 @@ async function initHotkeySetting() {
       input.value = res.hotkey.replace(/\+/g, '+').replace(/\b\w/g, c => c.toUpperCase());
       updateHotkeyHint(res.hotkey);
     }
-  } catch (e) {}
+  } catch (e) { console.error(e); }
 
   btnCapture.onclick = () => {
     if (hotkeyCapturing) {
@@ -756,7 +745,7 @@ async function initCloseBehavior() {
   $('#closeOptPrompt').onclick = () => { api('set_close_action', {action: 'prompt'}); if (label) label.textContent = t('close_dialog.label.prompt'); highlightCloseOpt('prompt'); };
   $('#closeOptMinimize').onclick = () => { api('set_close_action', {action: 'minimize'}); if (label) label.textContent = t('close_dialog.label.minimize'); highlightCloseOpt('minimize'); };
   $('#closeOptTray').onclick = () => { api('set_close_action', {action: 'tray'}); if (label) label.textContent = t('close_dialog.label.tray'); highlightCloseOpt('tray'); };
-  $('#closeOptQuit').onclick = () => { api('set_close_action', {action: 'quit'}); if (label) label.textContent = '彻底关闭'; highlightCloseOpt('quit'); };
+  $('#closeOptQuit').onclick = () => { api('set_close_action', {action: 'quit'}); if (label) label.textContent = t('close_dialog.label.quit'); highlightCloseOpt('quit'); };
 }
 
 function highlightCloseOpt(action) {
@@ -806,7 +795,7 @@ async function pollRealtimeData() {
         body.appendChild(tr);
       });
     }
-  } catch (e) {}
+  } catch (e) { console.error(e); }
 }
 
 // ===== 事件绑定 =====
@@ -1208,7 +1197,8 @@ function editStrategy(id) {
 async function deleteStrategy(id) {
   const s = strategyCache.find(x => x.id === id);
   if (!s) return;
-  if (!confirm(t('strategy.confirm_delete', s.name))) return;
+  const ok = await confirmDialog(t('strategy.confirm_delete', s.name));
+  if (!ok) return;
   try {
     const res = await api('delete_strategy', { id });
     if (res && res.ok) {

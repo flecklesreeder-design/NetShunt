@@ -2,6 +2,7 @@
 
 import (
 	_ "embed"
+	"sync"
 
 	"github.com/getlantern/systray"
 )
@@ -16,6 +17,7 @@ var (
 	trayOnQuit       func()
 	trayStarted      bool
 	trayQuitCh       = make(chan struct{})
+	trayQuitOnce     sync.Once
 )
 
 func startTray(onShow, onQuit func()) {
@@ -58,7 +60,7 @@ func onTrayExit() {
 
 func stopTray() {
 	if trayStarted {
-		close(trayQuitCh)
+		trayQuitOnce.Do(func() { close(trayQuitCh) })
 		systray.Quit()
 	}
 }

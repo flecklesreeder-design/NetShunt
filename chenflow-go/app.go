@@ -58,7 +58,7 @@ type App struct {
 	injectedRoutes    map[string]bool
 }
 
-const appVersion = "3.3.4"
+const appVersion = "3.3.5"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -486,7 +486,12 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			for {
 				n, rerr := resp.Body.Read(buf)
 				if n > 0 {
-					f.Write(buf[:n])
+					if _, werr := f.Write(buf[:n]); werr != nil {
+						f.Close()
+						os.Remove(tmpFile)
+						wailsruntime.EventsEmit(a.ctx, "update:error", "写入更新文件失败: "+werr.Error())
+						return
+					}
 					written += int64(n)
 					if total > 0 {
 						wailsruntime.EventsEmit(a.ctx, "update:progress", map[string]interface{}{"stage": "downloading", "percent": int(written * 100 / total)})
@@ -872,7 +877,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		name, _ := params["name"].(string)
 		modeLabel, _ := params["mode"].(string)
 		mode := "auto"
-		if modeLabel == "手动" {
+		if modeLabel == "手动" || modeLabel == "manual" || modeLabel == "Manual" {
 			mode = "manual"
 		}
 		if mode == "auto" {
@@ -1497,11 +1502,11 @@ func (a *App) handleCreateStrategy(params map[string]interface{}) map[string]int
 	if s == nil {
 		return map[string]interface{}{"ok": false, "error": "参数无效"}
 	}
-	a.stratCounter++
-	s.ID = a.stratCounter
 	s.CreatedAt = time.Now().Unix()
 	s.UpdatedAt = s.CreatedAt
 	a.mu.Lock()
+	a.stratCounter++
+	s.ID = a.stratCounter
 	a.strategies = append(a.strategies, s)
 	a.mu.Unlock()
 	a.saveStrategies()
@@ -1774,7 +1779,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 			routeKey := fmt.Sprintf("0.0.0.0/0|%d|%s", idx, gw)
 			if a.injectedRoutes[routeKey] {
 				applied++
-				currentRoute = totalRoutes
+				currentRoute++
 				messages = append(messages, fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name))
 				a.log(fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name), "info")
 				continue
@@ -1904,10 +1909,16 @@ func compareVersion(v1, v2 string) int {
 	for i := 0; i < len(p1) || i < len(p2); i++ {
 		var n1, n2 int
 		if i < len(p1) {
-			n1, _ = strconv.Atoi(p1[i])
+			n1, err := strconv.Atoi(p1[i])
+			if err != nil {
+				fmt.Sscanf(p1[i], "%d", &n1)
+			}
 		}
 		if i < len(p2) {
-			n2, _ = strconv.Atoi(p2[i])
+			n2, err := strconv.Atoi(p2[i])
+			if err != nil {
+				fmt.Sscanf(p2[i], "%d", &n2)
+			}
 		}
 		if n1 > n2 {
 			return 1

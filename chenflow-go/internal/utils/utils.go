@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -211,7 +212,8 @@ func IsValidIPv6(text string) bool {
 	if t == "" || !strings.Contains(t, ":") {
 		return false
 	}
-	return ipv6Re.MatchString(t)
+	ip := net.ParseIP(t)
+	return ip != nil && ip.To4() == nil
 }
 
 // IsValidHostname 校验域名
@@ -242,6 +244,9 @@ func SanitizeForCmd(text string) bool {
 
 // CIDRToNetmask CIDR 转子网掩码
 func CIDRToNetmask(cidrBits int) string {
+	if cidrBits < 0 || cidrBits > 32 {
+		return "0.0.0.0"
+	}
 	mask := (0xFFFFFFFF >> (32 - cidrBits)) << (32 - cidrBits)
 	return fmt.Sprintf("%d.%d.%d.%d",
 		(mask>>24)&0xFF, (mask>>16)&0xFF, (mask>>8)&0xFF, mask&0xFF)

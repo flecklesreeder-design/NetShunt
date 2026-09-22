@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -287,6 +288,12 @@ func runRouteBatch(commands []string) (okCount, errCount int, dead bool) {
 		}
 	}
 	okCount = len(commands) - errCount
+	if okCount < 0 {
+		okCount = 0
+	}
+	if okCount > len(commands) {
+		okCount = len(commands)
+	}
 	return
 }
 
@@ -625,7 +632,7 @@ func (e *Engine) lockInterfaceMetrics(exitProfile *models.AdapterProfile, log Lo
 		if !profile.IsUp || (profile.Role == models.RoleIgnored && profile.Name != defaultExitName) {
 			continue
 		}
-		isExit := profile.Name == exitProfile.Name
+		isExit := exitProfile != nil && profile.Name == exitProfile.Name
 		metric := NonExitInterfaceMetric
 		if isExit {
 			metric = DefaultRouteMetric
@@ -670,7 +677,7 @@ func (e *Engine) verifyInterfaceMetrics(exitProfile *models.AdapterProfile, log 
 			continue
 		}
 		expected := NonExitInterfaceMetric
-		if profile.Name == exitProfile.Name {
+		if exitProfile != nil && profile.Name == exitProfile.Name {
 			expected = DefaultRouteMetric
 		}
 		for _, line := range strings.Split(output, "\n") {
@@ -756,7 +763,7 @@ func (e *Engine) ApplyRule(rule *models.SplitRule) bool {
 	for _, ip := range ips {
 		var cmd string
 		if rule.Type == "IPv6" {
-			cmd = fmt.Sprintf(`netsh interface ipv6 add route %s/128 "%d" %s`, ip, idx, gw)
+			cmd = fmt.Sprintf(`netsh interface ipv6 add route %s/128 %d %s`, ip, idx, gw)
 		} else {
 			cmd = fmt.Sprintf("route add %s mask 255.255.255.255 %s metric 1 IF %d", ip, gw, idx)
 		}
@@ -781,7 +788,7 @@ func (e *Engine) RemoveRuleRoutes(rule *models.SplitRule) {
 	}
 	for _, ip := range rule.IPs {
 		if rule.Type == "IPv6" {
-			utils.RunCmd(fmt.Sprintf(`netsh interface ipv6 delete route %s/128 "%d" %s`, ip, profile.IfIndex, gw), 5)
+			utils.RunCmd(fmt.Sprintf(`netsh interface ipv6 delete route %s/128 %d %s`, ip, profile.IfIndex, gw), 5)
 		} else {
 			utils.RunCmd(fmt.Sprintf("route delete %s mask 255.255.255.255 %s", ip, gw), 5)
 		}
@@ -948,14 +955,16 @@ func (e *Engine) GuardLoop(log LogFunc, interval time.Duration) {
 				return
 			}
 			e.mu.Lock()
-			defer e.mu.Unlock()
 			if !e.guardRunning.Load() || e.cidrInjecting.Load() {
+				e.mu.Unlock()
 				return
 			}
 			fresh := utils.RunCmd("route print -4", 15)
 			if e.Verify(fresh) && e.VerifyCIDR(fresh) {
+				e.mu.Unlock()
 				return
 			}
+			e.mu.Unlock()
 			safeLog(log, "检测到路由漂移，正在修复...", "warn")
 			e.adapters.RefreshByMAC()
 			e.Repair(log)
@@ -1135,11 +1144,19 @@ func (e *Engine) SoftReset(rules []*models.SplitRule, log LogFunc, progress func
 
 	var lines []string
 	for _, dns := range cnDNSServers {
-		lines = append(lines, fmt.Sprintf("route delete %s", dns))
+		lines = append(lines, fmt.Sprintf("route delete %s mask 255.255.255.255", dns))
 	}
 	for _, cidr := range e.store.LoadCIDRCache() {
 		if strings.Contains(cidr, "/") {
-			lines = append(lines, fmt.Sprintf("route delete %s", strings.SplitN(cidr, "/", 2)[0]))
+			parts := strings.SplitN(cidr, "/", 2)
+			ip := parts[0]
+			mask := "255.255.255.255"
+			if len(parts) > 1 {
+				if bits, err := strconv.Atoi(parts[1]); err == nil {
+					mask = utils.CIDRToNetmask(bits)
+				}
+			}
+			lines = append(lines, fmt.Sprintf("route delete %s mask %s", ip, mask))
 		}
 	}
 	for _, rule := range rules {
@@ -1147,7 +1164,7 @@ func (e *Engine) SoftReset(rules []*models.SplitRule, log LogFunc, progress func
 			if rule.Type == "IPv6" {
 				lines = append(lines, fmt.Sprintf("netsh interface ipv6 delete route %s/128", ip))
 			} else {
-				lines = append(lines, fmt.Sprintf("route delete %s", ip))
+				lines = append(lines, fmt.Sprintf("route delete %s mask 255.255.255.255", ip))
 			}
 		}
 	}
