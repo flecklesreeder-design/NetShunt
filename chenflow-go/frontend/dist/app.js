@@ -840,14 +840,14 @@ function drawTrafficCharts(charts) {
   if (!container) return;
   const adapters = Object.keys(charts);
   if (adapters.length === 0) {
-    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0">' +
+    container.innerHTML = '<div style="text-align:center;color:#999;padding:40px 0">' +
       t('traffic.no_persistent') + '</div>';
     return;
   }
 
   const containerH = container.clientHeight || 300;
   const gap = adapters.length > 4 ? 4 : 8;
-  const chartH = Math.max(50, Math.min(160, Math.floor((containerH - gap * (adapters.length - 1)) / adapters.length)));
+  const chartH = Math.max(60, Math.min(180, Math.floor((containerH - gap * (adapters.length - 1)) / adapters.length)));
 
   adapters.sort();
   const existing = new Set();
@@ -861,8 +861,7 @@ function drawTrafficCharts(charts) {
       wrap.style.cssText = 'margin-bottom:' + gap + 'px';
       container.appendChild(wrap);
     }
-    const data = charts[adapter] || [];
-    drawSingleChart(wrap, adapter, data, chartH);
+    drawSingleChart(wrap, adapter, charts[adapter], chartH);
   });
 
   Array.from(container.children).forEach(child => {
@@ -870,35 +869,44 @@ function drawTrafficCharts(charts) {
   });
 }
 
-function drawSingleChart(wrap, adapter, data, chartH) {
+function drawSingleChart(wrap, adapter, info, chartH) {
   const W = wrap.clientWidth || 600;
   const H = chartH;
-  const labelH = 16;
-  const canvasH = H - labelH;
+  const headerH = 18;
+  const canvasH = H - headerH;
   let canvas = wrap.querySelector('canvas');
   if (!canvas) {
     canvas = document.createElement('canvas');
     wrap.appendChild(canvas);
   }
-  if (canvas.width !== W || canvas.height !== H) {
+  if (canvas.width !== W || canvas.height !== canvasH) {
     canvas.width = W;
-    canvas.height = H;
+    canvas.height = canvasH;
   }
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W, canvasH);
 
-  ctx.fillStyle = 'var(--text)';
+  const rtDl = info.rt_dl || 0;
+  const rtUp = info.rt_up || 0;
+  const totalDl = info.total_dl || 0;
+  const totalUp = info.total_up || 0;
+  const data = info.history || [];
+
+  ctx.fillStyle = '#e0e0e0';
   ctx.font = '11px sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(adapter + '  (' + t('traffic.chart_dl') + '/' + t('traffic.chart_up') + ')', 2, 1);
+  const header = adapter + '   \u2193' + formatRate(rtDl) + '  \u2191' + formatRate(rtUp) +
+    '   \u7D2F\u8BA1: \u2193' + formatBytes(totalDl) + ' \u2191' + formatBytes(totalUp);
+  ctx.fillText(header, 2, 1);
 
   const points = Math.floor(data.length / 2);
   if (points < 2) {
-    ctx.fillStyle = 'var(--text-muted)';
+    ctx.fillStyle = '#999';
+    ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(t('traffic.collecting'), W / 2, H / 2);
+    ctx.fillText(t('traffic.collecting'), W / 2, canvasH / 2);
     return;
   }
 
@@ -909,10 +917,10 @@ function drawSingleChart(wrap, adapter, data, chartH) {
   const topPad = 4;
   const botPad = 2;
   const plotH = canvasH - topPad - botPad;
-  const plotY = labelH + topPad;
-  const stepX = W / (points - 1);
+  const plotY = topPad;
+  const stepX = W / Math.max(points - 1, 1);
 
-  ctx.strokeStyle = 'rgba(128,128,128,0.15)';
+  ctx.strokeStyle = 'rgba(128,128,128,0.12)';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const y = plotY + Math.floor(plotH * i / 4);
@@ -938,7 +946,7 @@ function drawSingleChart(wrap, adapter, data, chartH) {
   drawLine('#22c55e', 0);
   drawLine('#3b82f6', 1);
 
-  ctx.fillStyle = 'var(--text-muted)';
+  ctx.fillStyle = '#999';
   ctx.font = '9px sans-serif';
   ctx.textAlign = 'right';
   ctx.textBaseline = 'top';
@@ -949,6 +957,13 @@ function formatRate(bytesPerSec) {
   if (bytesPerSec >= 1048576) return (bytesPerSec / 1048576).toFixed(1) + ' MB/s';
   if (bytesPerSec >= 1024) return (bytesPerSec / 1024).toFixed(1) + ' KB/s';
   return bytesPerSec + ' B/s';
+}
+
+function formatBytes(bytes) {
+  if (bytes >= 1073741824) return (bytes / 1073741824).toFixed(2) + ' GB';
+  if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+  if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return bytes + ' B';
 }
 
 // ===== 事件绑定 =====

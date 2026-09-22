@@ -61,10 +61,13 @@ type App struct {
 	processTraffic    map[string]map[string]uint64
 	trafficHistory    map[string]uint64
 	persistentMon     map[string]bool
-	trafficChartdata  map[string][]uint64
+	traffic24h        map[string][]uint64
+	traffic24hAccum   map[string][2]uint64
+	trafficRealtime   map[string][2]uint64
+	trafficTotal      map[string][2]uint64
 }
 
-const appVersion = "3.6.0"
+const appVersion = "3.6.1"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -89,7 +92,10 @@ func NewApp() *App {
 		processTraffic:    make(map[string]map[string]uint64),
 		trafficHistory:    make(map[string]uint64),
 		persistentMon:     make(map[string]bool),
-		trafficChartdata:  make(map[string][]uint64),
+		traffic24h:        make(map[string][]uint64),
+		traffic24hAccum:   make(map[string][2]uint64),
+		trafficRealtime:   make(map[string][2]uint64),
+		trafficTotal:      make(map[string][2]uint64),
 	}
 
 	a.adapters.Refresh()
@@ -628,13 +634,27 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		}
 		a.persistentMon[adapter] = enabled
 		if !enabled {
-			delete(a.trafficChartdata, adapter)
+			delete(a.traffic24h, adapter)
+			delete(a.traffic24hAccum, adapter)
+			delete(a.trafficRealtime, adapter)
+			delete(a.trafficTotal, adapter)
 		}
 		return map[string]interface{}{"ok": true}
 	case "get_traffic_charts":
 		charts := make(map[string]interface{})
-		for adapter, data := range a.trafficChartdata {
-			charts[adapter] = data
+		for adapter, data := range a.traffic24h {
+			entry := map[string]interface{}{
+				"history": data,
+			}
+			if rt, ok := a.trafficRealtime[adapter]; ok {
+				entry["rt_dl"] = rt[0]
+				entry["rt_up"] = rt[1]
+			}
+			if total, ok := a.trafficTotal[adapter]; ok {
+				entry["total_dl"] = total[0]
+				entry["total_up"] = total[1]
+			}
+			charts[adapter] = entry
 		}
 		return map[string]interface{}{"charts": charts}
 	case "get_process_traffic":
@@ -1404,13 +1424,14 @@ func (a *App) trafficMonitor() {
 
 func (a *App) persistentTrafficMonitor() {
 	prevStats := make(map[string][2]uint64)
+	tick := 0
 	for a.monitorRun {
 		time.Sleep(2 * time.Second)
 		stats, err := psnet.IOCounters(true)
 		if err != nil {
 			continue
 		}
-		now := time.Now().Unix()
+		tick++
 		for _, s := range stats {
 			if !a.persistentMon[s.Name] {
 				continue
@@ -1425,16 +1446,30 @@ func (a *App) persistentTrafficMonitor() {
 				if cur[1] >= prev[1] {
 					upDelta = cur[1] - prev[1]
 				}
-				data := a.trafficChartdata[s.Name]
-				data = append(data, dlDelta, upDelta)
-				if len(data) > 120 {
-					data = data[len(data)-120:]
-				}
-				a.trafficChartdata[s.Name] = data
+				a.trafficRealtime[s.Name] = [2]uint64{dlDelta / 2, upDelta / 2}
+				total := a.trafficTotal[s.Name]
+				total[0] += dlDelta
+				total[1] += upDelta
+				a.trafficTotal[s.Name] = total
+				accum := a.traffic24hAccum[s.Name]
+				accum[0] += dlDelta
+				accum[1] += upDelta
+				a.traffic24hAccum[s.Name] = accum
 			}
 			prevStats[s.Name] = cur
 		}
-		_ = now
+		if tick >= 30 {
+			tick = 0
+			for name, accum := range a.traffic24hAccum {
+				data := a.traffic24h[name]
+				data = append(data, accum[0], accum[1])
+				if len(data) > 2880 {
+					data = data[len(data)-2880:]
+				}
+				a.traffic24h[name] = data
+				a.traffic24hAccum[name] = [2]uint64{0, 0}
+			}
+		}
 	}
 }
 
