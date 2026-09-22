@@ -127,10 +127,6 @@ chenflow-go/
 └── build/windows/            # exe 图标 / manifest / 版本信息
 ```
 
-## 关键词
-
-Windows 多网卡、Windows 策略路由、Windows 网络分流、指定网卡出站、VPN 分流、Split Tunnel、Multi-NIC、Policy Routing、Traffic Routing、CIDR 路由、静态路由、多个默认网关、内外网分流、双网卡上网、双网卡内外网、network adapter routing。
-
 ## 支持
 
 如果这个项目对你有帮助，欢迎请我喝杯咖啡 ☕
