@@ -476,7 +476,16 @@ async function loadAdapterMonitor() {
 async function saveAdapterMonitor() {
   const monitored = Array.from($$('#adapterMonitorList input[type="checkbox"]:checked'))
     .map(cb => cb.dataset.name);
-  await api('save_adapter_monitor', {enabled: $('#monitorSwitch').checked, monitored});
+  try {
+    const res = await api('save_adapter_monitor', {enabled: $('#monitorSwitch').checked, monitored});
+    if (res && res.ok) {
+      showToast(t('monitor.save') + ' ✓');
+    } else {
+      showToast((res && res.error) || '保存失败', 'error');
+    }
+  } catch (e) {
+    showToast('保存失败: ' + (e.message || e), 'error');
+  }
 }
 
 // ===== 规则管理器 =====

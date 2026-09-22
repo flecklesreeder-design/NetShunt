@@ -59,7 +59,7 @@ type App struct {
 	injectedRoutes    sync.Map
 }
 
-const appVersion = "3.4.0"
+const appVersion = "3.4.1"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {

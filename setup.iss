@@ -4,7 +4,7 @@
 [Setup]
 AppId={{A1152A57-157E-4726-9D42-903325084A02}}
 AppName=NetShunt
-AppVersion=3.4.0
+AppVersion=3.4.1
 AppVerName=NetShunt
 AppPublisher=chen
 AppPublisherURL=mailto:924636096@qq.com
@@ -18,7 +18,7 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
 OutputDir=installer_output
-OutputBaseFileName=NetShunt_3.4.0_Setup
+OutputBaseFileName=NetShunt_3.4.1_Setup
 SetupIconFile=logo.ico
 LicenseFile=license.txt
 InfoBeforeFile=before_install.txt
@@ -56,16 +56,12 @@ Type: filesandordirs; Name: "{app}\data"
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\EBWebView"
 Type: filesandordirs; Name: "{app}"
-Type: filesandordirs; Name: "{userappdata}\NetShunt"
-Type: filesandordirs; Name: "{userappdata}\NetShunt.exe"
 
 [Code]
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    DelTree(ExpandConstant('{userappdata}\NetShunt'), True, True, True);
-    DelTree(ExpandConstant('{userappdata}\NetShunt.exe'), True, True, True);
     DelTree(ExpandConstant('{app}'), True, True, True);
   end;
 end;
