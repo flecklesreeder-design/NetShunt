@@ -59,7 +59,7 @@ type App struct {
 	injectedRoutes    sync.Map
 }
 
-const appVersion = "3.3.8"
+const appVersion = "3.3.9"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -1968,14 +1968,16 @@ func compareVersion(v1, v2 string) int {
 	for i := 0; i < len(p1) || i < len(p2); i++ {
 		var n1, n2 int
 		if i < len(p1) {
-			n1, err := strconv.Atoi(p1[i])
-			if err != nil {
+			if n, err := strconv.Atoi(p1[i]); err == nil {
+				n1 = n
+			} else {
 				fmt.Sscanf(p1[i], "%d", &n1)
 			}
 		}
 		if i < len(p2) {
-			n2, err := strconv.Atoi(p2[i])
-			if err != nil {
+			if n, err := strconv.Atoi(p2[i]); err == nil {
+				n2 = n
+			} else {
 				fmt.Sscanf(p2[i], "%d", &n2)
 			}
 		}
