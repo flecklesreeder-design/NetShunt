@@ -55,9 +55,10 @@ type App struct {
 
 	adapterLastStatus map[string]bool
 	hidden            bool
+	injectedRoutes    map[string]bool
 }
 
-const appVersion = "3.3.2"
+const appVersion = "3.3.3"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -79,6 +80,7 @@ func NewApp() *App {
 		presetAddr:        defaultPresetAddresses(),
 		adapterMon:        map[string]interface{}{"enabled": false, "monitored_adapters": []string{}},
 		adapterLastStatus: make(map[string]bool),
+		injectedRoutes:    make(map[string]bool),
 	}
 
 	a.adapters.Refresh()
@@ -1043,6 +1045,9 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 				}
 			}
 			a.engine.SoftReset(rulesSnapshot, a.logFn(), progressFn)
+			a.mu.Lock()
+			a.injectedRoutes = make(map[string]bool)
+			a.mu.Unlock()
 			if a.ctx != nil {
 				wailsruntime.EventsEmit(a.ctx, "reset:done", map[string]interface{}{"ok": true})
 			}
@@ -1737,11 +1742,20 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 
 		if s.IsFallback() {
 			currentRoute++
+			routeKey := fmt.Sprintf("0.0.0.0/0|%d|%s", idx, gw)
+			if a.injectedRoutes[routeKey] {
+				applied++
+				currentRoute = totalRoutes
+				messages = append(messages, fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name))
+				a.log(fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name), "info")
+				continue
+			}
 			emitProgress(currentRoute, totalRoutes, fmt.Sprintf("[%s] 正在注入默认路由...", s.Name))
 			cmd := fmt.Sprintf("route add 0.0.0.0 mask 0.0.0.0 %s metric 10 IF %d", gw, idx)
 			out := utils.RunCmd(cmd, 15)
 			if !utils.CmdFailed(out) {
 				applied++
+				a.injectedRoutes[routeKey] = true
 				messages = append(messages, fmt.Sprintf("[%s] 默认路由 → %s IF %d ✓", s.Name, gw, idx))
 				a.log(fmt.Sprintf("[%s] 默认路由 → %s IF %d ✓", s.Name, gw, idx), "success")
 			} else {
@@ -1789,6 +1803,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 		}
 
 		stratApplied := 0
+		skipped := 0
 		for i, line := range cidrList {
 			line = strings.TrimSpace(line)
 			if line == "" || strings.HasPrefix(line, "#") {
@@ -1798,9 +1813,10 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 				emitProgress(currentRoute, totalRoutes, fmt.Sprintf("[%s] 正在注入路由 %d/%d...", s.Name, i+1, len(cidrList)))
 			}
 			if (i+1)%500 == 0 {
-				a.log(fmt.Sprintf("[%s] 已注入 %d/%d 条路由...", s.Name, i+1, len(cidrList)), "info")
+				a.log(fmt.Sprintf("[%s] 已处理 %d/%d 条路由...", s.Name, i+1, len(cidrList)), "info")
 			}
 			var cmd string
+			var routeKey string
 			if strings.Contains(line, "/") {
 				parts := strings.SplitN(line, "/", 2)
 				ip := parts[0]
@@ -1811,18 +1827,31 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 				}
 				mask := utils.CIDRToNetmask(bits)
 				cmd = fmt.Sprintf("route add %s mask %s %s metric 1 IF %d", ip, mask, gw, idx)
+				routeKey = fmt.Sprintf("%s/%d|%d|%s", ip, bits, idx, gw)
 			} else {
 				cmd = fmt.Sprintf("route add %s mask 255.255.255.255 %s metric 1 IF %d", line, gw, idx)
+				routeKey = fmt.Sprintf("%s/32|%d|%s", line, idx, gw)
+			}
+			if a.injectedRoutes[routeKey] {
+				skipped++
+				currentRoute++
+				continue
 			}
 			out := utils.RunCmd(cmd, 10)
 			if !utils.CmdFailed(out) {
 				stratApplied++
+				a.injectedRoutes[routeKey] = true
 			}
 			currentRoute++
 		}
 		applied++
-		messages = append(messages, fmt.Sprintf("[%s] 注入 %d 条路由 → %s IF %d ✓", s.Name, stratApplied, gw, idx))
-		a.log(fmt.Sprintf("[%s] 完成 · 注入 %d 条路由 → %s IF %d ✓", s.Name, stratApplied, gw, idx), "success")
+		if skipped > 0 {
+			messages = append(messages, fmt.Sprintf("[%s] 新增 %d 条 · 跳过 %d 条已存在 → %s IF %d ✓", s.Name, stratApplied, skipped, gw, idx))
+			a.log(fmt.Sprintf("[%s] 完成 · 新增 %d 条 · 跳过 %d 条已存在 → %s IF %d ✓", s.Name, stratApplied, skipped, gw, idx), "success")
+		} else {
+			messages = append(messages, fmt.Sprintf("[%s] 注入 %d 条路由 → %s IF %d ✓", s.Name, stratApplied, gw, idx))
+			a.log(fmt.Sprintf("[%s] 完成 · 注入 %d 条路由 → %s IF %d ✓", s.Name, stratApplied, gw, idx), "success")
+		}
 	}
 
 	result := map[string]interface{}{
