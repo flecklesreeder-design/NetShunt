@@ -57,9 +57,12 @@ type App struct {
 	adapterLastStatus map[string]bool
 	hidden            atomic.Bool
 	injectedRoutes    sync.Map
+	logConfig         map[string]interface{}
+	processTraffic    map[string]map[string]uint64
+	trafficHistory    map[string]uint64
 }
 
-const appVersion = "3.4.1"
+const appVersion = "3.5.0"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -81,6 +84,8 @@ func NewApp() *App {
 		presetAddr:        defaultPresetAddresses(),
 		adapterMon:        map[string]interface{}{"enabled": false, "monitored_adapters": []string{}},
 		adapterLastStatus: make(map[string]bool),
+		processTraffic:    make(map[string]map[string]uint64),
+		trafficHistory:    make(map[string]uint64),
 	}
 
 	a.adapters.Refresh()
@@ -93,6 +98,16 @@ func NewApp() *App {
 		}
 	}
 	a.presetAddr = a.mergePresetAddresses(a.store.LoadPresetAddresses())
+	a.logConfig = a.store.LoadLogConfig()
+	for k, v := range a.store.LoadTrafficHistory() {
+		if n, ok := v.(float64); ok {
+			a.trafficHistory[k] = uint64(n)
+		}
+	}
+	logPath, _ := a.logConfig["log_path"].(string)
+	if logPath != "" {
+		os.MkdirAll(logPath, 0755)
+	}
 	a.adapterMon = a.mergeAdapterMonitor(a.store.LoadAdapterMonitor())
 	a.autoBindMACs()
 	a.updateRoleStatus()
@@ -598,6 +613,39 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		}
 	case "get_audit":
 		return map[string]interface{}{"data": a.auditData}
+	case "get_process_traffic":
+		result := make([]map[string]interface{}, 0)
+		for name, traffic := range a.processTraffic {
+			result = append(result, map[string]interface{}{
+				"process": name,
+				"dl":      traffic["dl"],
+				"up":      traffic["up"],
+			})
+		}
+		return map[string]interface{}{"processes": result}
+	case "get_log_config":
+		return a.logConfig
+	case "set_log_config":
+		retention, _ := params["retention_days"].(float64)
+		maxSize, _ := params["max_size_mb"].(float64)
+		logPath, _ := params["log_path"].(string)
+		if retention <= 0 {
+			retention = 7
+		}
+		if maxSize <= 0 {
+			maxSize = 100
+		}
+		if logPath == "" {
+			logPath = filepath.Join(a.store.BaseDir(), "logs")
+		}
+		a.logConfig = map[string]interface{}{
+			"retention_days": int(retention),
+			"max_size_mb":    int(maxSize),
+			"log_path":       logPath,
+		}
+		a.store.SaveLogConfig(a.logConfig)
+		os.MkdirAll(logPath, 0755)
+		return map[string]interface{}{"ok": true}
 	case "toggle_logging":
 		a.isLogging, _ = params["enabled"].(bool)
 		return map[string]interface{}{"ok": true}
@@ -1229,7 +1277,35 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 
 func (a *App) trafficMonitor() {
 	var lastTime time.Time
+	var saveTicker = time.NewTicker(60 * time.Second)
+	defer saveTicker.Stop()
 	for a.monitorRun {
+		select {
+		case <-saveTicker.C:
+			histDl := a.trafficHistory["dl_total"]
+			histUp := a.trafficHistory["up_total"]
+			var curDl, curUp uint64
+			if a.trafficInited {
+				stats, err := psnet.IOCounters(true)
+				if err == nil {
+					for _, s := range stats {
+						if s.Name == a.trafficAdap {
+							if s.BytesRecv >= a.startRecv {
+								curDl = s.BytesRecv - a.startRecv
+							}
+							if s.BytesSent >= a.startSent {
+								curUp = s.BytesSent - a.startSent
+							}
+							break
+						}
+					}
+				}
+			}
+			a.trafficHistory["dl_total"] = histDl + curDl
+			a.trafficHistory["up_total"] = histUp + curUp
+			a.store.SaveTrafficHistory(a.trafficHistory)
+		default:
+		}
 		time.Sleep(time.Second)
 		if a.trafficAdap == "" {
 			continue
@@ -1288,8 +1364,10 @@ func (a *App) trafficMonitor() {
 		if sent >= a.startSent {
 			upTotalVal = sent - a.startSent
 		}
-		dlTotal := utils.FormatBytes(float64(dlTotalVal))
-		upTotal := utils.FormatBytes(float64(upTotalVal))
+		histDl := a.trafficHistory["dl_total"]
+		histUp := a.trafficHistory["up_total"]
+		dlTotal := utils.FormatBytes(float64(histDl + dlTotalVal))
+		upTotal := utils.FormatBytes(float64(histUp + upTotalVal))
 		a.trafficData = map[string]string{
 			"dl_s": dlSpeed + "/s", "up_s": upSpeed + "/s",
 			"dl_t": dlTotal, "up_t": upTotal,
@@ -1301,12 +1379,32 @@ func (a *App) trafficMonitor() {
 }
 
 func (a *App) auditMonitor() {
+	var prevRecv, prevSent uint64
+	var firstStats = true
 	for a.monitorRun {
 		time.Sleep(5 * time.Second)
 		out := utils.RunCmd("netstat -ano", 10)
 		if out == "" {
 			continue
 		}
+
+		var totalRecv, totalSent uint64
+		allStats, err := psnet.IOCounters(true)
+		if err == nil {
+			for _, s := range allStats {
+				totalRecv += s.BytesRecv
+				totalSent += s.BytesSent
+			}
+		}
+		var dlDelta, upDelta uint64
+		if !firstStats && totalRecv >= prevRecv && totalSent >= prevSent {
+			dlDelta = totalRecv - prevRecv
+			upDelta = totalSent - prevSent
+		}
+		prevRecv = totalRecv
+		prevSent = totalSent
+		firstStats = false
+
 		ipToName := make(map[string]string)
 		for _, p := range a.adapters.Profiles() {
 			if p.IP != "" {
@@ -1319,6 +1417,7 @@ func (a *App) auditMonitor() {
 		}
 		var entries []connEntry
 		pidSet := make(map[int]bool)
+		pidConnCount := make(map[int]int)
 		stamp := time.Now().Format("2006-01-02 15:04:05")
 		for _, line := range strings.Split(out, "\n") {
 			parts := strings.Fields(line)
@@ -1347,13 +1446,15 @@ func (a *App) auditMonitor() {
 				adapter = "未知"
 			}
 			entries = append(entries, connEntry{
-				row: []string{stamp, adapter, "", remoteIP, remotePort, "活跃"},
+				row: []string{stamp, adapter, "", remoteIP, remotePort, "活跃", "0", "0"},
 				pid: pid,
 			})
 			if pid != 0 {
 				pidSet[pid] = true
+				pidConnCount[pid]++
 			}
 		}
+
 		pidToName := make(map[int]string)
 		if len(pidSet) > 0 {
 			taskOut := utils.RunCmd("tasklist /FO CSV /NH", 5)
@@ -1373,12 +1474,49 @@ func (a *App) auditMonitor() {
 				}
 			}
 		}
+
+		totalConns := 0
+		for _, c := range pidConnCount {
+			totalConns += c
+		}
+		newProcessTraffic := make(map[string]map[string]uint64)
+		for pid, count := range pidConnCount {
+			name := pidToName[pid]
+			if name == "" {
+				name = "System"
+			}
+			if totalConns > 0 {
+				pDl := dlDelta * uint64(count) / uint64(totalConns)
+				pUp := upDelta * uint64(count) / uint64(totalConns)
+				if existing, ok := newProcessTraffic[name]; ok {
+					existing["dl"] += pDl
+					existing["up"] += pUp
+				} else {
+					newProcessTraffic[name] = map[string]uint64{"dl": pDl, "up": pUp}
+				}
+			}
+		}
+		for name, traffic := range newProcessTraffic {
+			if existing, ok := a.processTraffic[name]; ok {
+				existing["dl"] += traffic["dl"]
+				existing["up"] += traffic["up"]
+			} else {
+				a.processTraffic[name] = map[string]uint64{"dl": traffic["dl"], "up": traffic["up"]}
+			}
+		}
+
 		var conns [][]string
 		for _, e := range entries {
-			if name, ok := pidToName[e.pid]; ok {
-				e.row[2] = name
-			} else {
-				e.row[2] = "System"
+			name := pidToName[e.pid]
+			if name == "" {
+				name = "System"
+			}
+			e.row[2] = name
+			if totalConns > 0 && e.pid != 0 {
+				pDl := dlDelta * uint64(pidConnCount[e.pid]) / uint64(totalConns)
+				pUp := upDelta * uint64(pidConnCount[e.pid]) / uint64(totalConns)
+				e.row[6] = utils.FormatBytes(float64(pDl))
+				e.row[7] = utils.FormatBytes(float64(pUp))
 			}
 			conns = append(conns, e.row)
 		}
@@ -1386,6 +1524,63 @@ func (a *App) auditMonitor() {
 			conns = conns[:50]
 		}
 		a.auditData = conns
+
+		if a.isLogging {
+			a.writeAuditLog(conns)
+		}
+	}
+}
+
+func (a *App) writeAuditLog(conns [][]string) {
+	logPath, _ := a.logConfig["log_path"].(string)
+	if logPath == "" {
+		logPath = filepath.Join(a.store.BaseDir(), "logs")
+	}
+	os.MkdirAll(logPath, 0755)
+	dateStr := time.Now().Format("2006-01-02")
+	logFile := filepath.Join(logPath, "audit_"+dateStr+".csv")
+	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	for _, row := range conns {
+		line := strings.Join(row, ",")
+		fmt.Fprintln(f, line)
+	}
+	a.rotateAuditLogs(logPath)
+}
+
+func (a *App) rotateAuditLogs(logPath string) {
+	retentionDays := 7
+	maxSizeMB := 100
+	if v, ok := a.logConfig["retention_days"].(float64); ok {
+		retentionDays = int(v)
+	}
+	if v, ok := a.logConfig["max_size_mb"].(float64); ok {
+		maxSizeMB = int(v)
+	}
+	entries, err := os.ReadDir(logPath)
+	if err != nil {
+		return
+	}
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), "audit_") || !strings.HasSuffix(entry.Name(), ".csv") {
+			continue
+		}
+		fullPath := filepath.Join(logPath, entry.Name())
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			os.Remove(fullPath)
+			continue
+		}
+		if info.Size() > int64(maxSizeMB)*1024*1024 {
+			os.Remove(fullPath)
+		}
 	}
 }
 

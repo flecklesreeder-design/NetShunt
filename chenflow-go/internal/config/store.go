@@ -62,6 +62,10 @@ func (s *Store) p(name string) string {
 	return filepath.Join(s.baseDir, name)
 }
 
+func (s *Store) BaseDir() string {
+	return s.baseDir
+}
+
 func readJSON(path string, v interface{}) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -296,4 +300,35 @@ func (s *Store) LoadInjectedRoutes() map[string]bool {
 
 func (s *Store) SaveInjectedRoutes(data map[string]bool) error {
 	return writeJSON(s.p("injected_routes.json"), data)
+}
+func (s *Store) LoadLogConfig() map[string]interface{} {
+	var raw map[string]interface{}
+	readJSON(s.p("log_config.json"), &raw)
+	if raw == nil {
+		raw = map[string]interface{}{}
+	}
+	if _, ok := raw["retention_days"]; !ok {
+		raw["retention_days"] = 7
+	}
+	if _, ok := raw["max_size_mb"]; !ok {
+		raw["max_size_mb"] = 100
+	}
+	if _, ok := raw["log_path"]; !ok {
+		raw["log_path"] = filepath.Join(s.baseDir, "logs")
+	}
+	return raw
+}
+
+func (s *Store) SaveLogConfig(data interface{}) error {
+	return writeJSON(s.p("log_config.json"), data)
+}
+
+func (s *Store) LoadTrafficHistory() map[string]interface{} {
+	var raw map[string]interface{}
+	readJSON(s.p("traffic_history.json"), &raw)
+	return raw
+}
+
+func (s *Store) SaveTrafficHistory(data interface{}) error {
+	return writeJSON(s.p("traffic_history.json"), data)
 }

@@ -823,7 +823,7 @@ async function pollRealtimeData() {
       body.innerHTML = '';
       auditRes.data.forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = row.map(c => `<td>${c}</td>`).join('');
+        tr.innerHTML = row.map(c => `<td>${escapeHtml(c)}</td>`).join('');
         body.appendChild(tr);
       });
     }
@@ -910,6 +910,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 设置: 快捷键
   initHotkeySetting();
+
+  // 设置: 日志管理
+  api('get_log_config').then(cfg => {
+    if (cfg) {
+      const pathInput = $('#logPathInput');
+      const retInput = $('#logRetentionInput');
+      const sizeInput = $('#logMaxSizeInput');
+      if (pathInput && cfg.log_path) pathInput.value = cfg.log_path;
+      if (retInput && cfg.retention_days) retInput.value = cfg.retention_days;
+      if (sizeInput && cfg.max_size_mb) sizeInput.value = cfg.max_size_mb;
+    }
+  }).catch(() => {});
+  bindClick('#btnSaveLogConfig', async () => {
+    const logPath = $('#logPathInput') ? $('#logPathInput').value.trim() : '';
+    const retention = $('#logRetentionInput') ? parseInt($('#logRetentionInput').value) || 7 : 7;
+    const maxSize = $('#logMaxSizeInput') ? parseInt($('#logMaxSizeInput').value) || 100 : 100;
+    try {
+      const res = await api('set_log_config', { retention_days: retention, max_size_mb: maxSize, log_path: logPath });
+      if (res && res.ok) {
+        showToast(t('log_mgmt.save') + ' ✓');
+      } else {
+        showToast((res && res.error) || '保存失败', 'error');
+      }
+    } catch (e) {
+      showToast('保存失败: ' + (e.message || e), 'error');
+    }
+  });
 
   // 捐赠二维码点击放大
   $$('.donate-qr').forEach(img => {

@@ -161,11 +161,13 @@
               <thead>
                 <tr>
                   <th style="width:120px" data-i18n="analyzer.col_time">时间</th>
-                  <th style="width:120px" data-i18n="analyzer.col_adapter">使用网卡</th>
-                  <th style="width:150px" data-i18n="analyzer.col_process">后台进程</th>
-                  <th style="width:180px" data-i18n="analyzer.col_target">目标 IP/URL</th>
-                  <th style="width:80px" data-i18n="analyzer.col_port">端口</th>
-                  <th style="width:100px" data-i18n="analyzer.col_status">状态</th>
+                  <th style="width:100px" data-i18n="analyzer.col_adapter">使用网卡</th>
+                  <th style="width:130px" data-i18n="analyzer.col_process">后台进程</th>
+                  <th style="width:150px" data-i18n="analyzer.col_target">目标 IP/URL</th>
+                  <th style="width:70px" data-i18n="analyzer.col_port">端口</th>
+                  <th style="width:80px" data-i18n="analyzer.col_dl">下载</th>
+                  <th style="width:80px" data-i18n="analyzer.col_up">上传</th>
+                  <th style="width:70px" data-i18n="analyzer.col_status">状态</th>
                 </tr>
               </thead>
               <tbody id="auditTableBody"></tbody>
@@ -287,6 +289,10 @@
             <button class="nav-btn sub-nav-btn" data-subpage="adapter_monitor">
               <svg class="sub-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 20h20L12 2z"/><path d="M12 9v4M12 17h.01"/></svg>
               <span data-i18n="settings.adapter_monitor">断开提醒</span>
+            </button>
+            <button class="nav-btn sub-nav-btn" data-subpage="log_management">
+              <svg class="sub-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v4H4z"/><path d="M4 10h16v10H4z"/><path d="M8 14h8"/></svg>
+              <span data-i18n="settings.log_management">日志管理</span>
             </button>
             <button class="nav-btn sub-nav-btn" data-subpage="language">
               <svg class="sub-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20a15 15 0 0 1 0-20"/></svg>
@@ -445,6 +451,33 @@
                   </label>
                 </div>
                 <div class="adapter-monitor-list" id="adapterMonitorList"></div>
+              </div>
+            </div>
+
+            <!-- 日志管理 -->
+            <div class="sub-page" id="sub-log_management">
+              <div class="card-inner">
+                <h3 class="card-title" data-i18n="log_mgmt.title">日志管理</h3>
+                <p class="text-secondary" style="padding:0 16px 16px" data-i18n="log_mgmt.desc">设置审计日志的保存路径、保留天数和最大容量</p>
+                <div style="padding:0 16px;display:flex;flex-direction:column;gap:16px">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="text-secondary" style="width:100px;font-size:13px" data-i18n="log_mgmt.path">保存路径</span>
+                    <input type="text" class="input" id="logPathInput" style="flex:1" placeholder="C:\Users\...\NetShunt\logs">
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="text-secondary" style="width:100px;font-size:13px" data-i18n="log_mgmt.retention">保留天数</span>
+                    <input type="number" class="input" id="logRetentionInput" style="width:100px" min="1" max="365" value="7">
+                    <span class="text-muted" style="font-size:12px" data-i18n="log_mgmt.retention_hint">超过天数的日志自动删除</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span class="text-secondary" style="width:100px;font-size:13px" data-i18n="log_mgmt.max_size">最大容量</span>
+                    <input type="number" class="input" id="logMaxSizeInput" style="width:100px" min="1" max="10240" value="100">
+                    <span class="text-muted" style="font-size:12px">MB</span>
+                  </div>
+                  <div style="display:flex;gap:8px;padding-top:8px">
+                    <button class="btn btn-accent btn-sm" id="btnSaveLogConfig" data-i18n="log_mgmt.save">保存配置</button>
+                  </div>
+                </div>
               </div>
             </div>
 
