@@ -444,14 +444,9 @@ func (e *Engine) getNetStateFallback() netState {
 			ifaceIP := parts[3]
 			ifIdx := ipToIdx[ifaceIP]
 			prefix := 0
-			for _, o := range strings.Split(mask, ".") {
-				var v int
-				fmt.Sscanf(o, "%d", &v)
-				for i := 0; i < 8; i++ {
-					if (v>>i)&1 == 1 {
-						prefix++
-					}
-				}
+			if m := net.ParseIP(mask).To4(); m != nil {
+				ipMask := net.IPMask(m)
+				prefix, _ = ipMask.Size()
 			}
 			var metric int
 			fmt.Sscanf(parts[4], "%d", &metric)
@@ -579,46 +574,6 @@ func (e *Engine) reconcile(log LogFunc) bool {
 	} else {
 		safeLog(log, "[RECONCILE] 完成，无需修改。", "info")
 	}
-	return true
-}
-
-func (e *Engine) sanitizeDefaultRoutes(log LogFunc) bool {
-	exitProf := e.adapters.DefaultExit()
-	if exitProf == nil || exitProf.Gateway() == "" {
-		safeLog(log, "环境净化跳过：未获取到默认出口网关，保留现有默认路由。", "warn")
-		return true
-	}
-	gw := exitProf.Gateway()
-	idx := exitProf.IfIndex
-	e.lockInterfaceMetrics(exitProf, log)
-	safeLog(log, "[ROUTE] 清理管理接口默认路由（保留第三方/VPN 路由）...", "info")
-	e.deleteManagedDefaultRoutes(log)
-	ifSuffix := ""
-	if idx != 0 {
-		ifSuffix = fmt.Sprintf(" IF %d", idx)
-	}
-	addCmd := fmt.Sprintf("route add 0.0.0.0 mask 0.0.0.0 %s metric %d%s", gw, DefaultRouteMetric, ifSuffix)
-	out := utils.RunCmd(addCmd, 60)
-	if detectDeadAdapter(out) {
-		safeLog(log, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", "error")
-		safeLog(log, "检测到网卡底层假死（错误 1231）！！", "error")
-		safeLog(log, "处理方法：请关闭无线网卡节能模式，", "error")
-		safeLog(log, "或以管理员身份运行 netsh winsock reset 重置网络栈。", "error")
-		safeLog(log, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", "error")
-		panic(&AdapterDeadError{Msg: "检测到网卡底层假死（错误 1231），请关闭无线网卡节能模式或以管理员运行 netsh winsock reset 重置网络栈"})
-	}
-	if !verifyDefaultRoute(gw) {
-		safeLog(log, "环境净化后默认路由验证失败，中止本次注入，请检查网卡状态。", "error")
-		return false
-	}
-	bindNote := ""
-	if idx != 0 {
-		bindNote = fmt.Sprintf("，IF %d", idx)
-	} else {
-		bindNote = "（无IF，索引未探到）"
-	}
-	safeLog(log, fmt.Sprintf("环境净化完成：遗留默认路由已清空，兜底出口指向 %s（metric %d%s）。", gw, DefaultRouteMetric, bindNote), "success")
-	e.verifyInterfaceMetrics(exitProf, log)
 	return true
 }
 

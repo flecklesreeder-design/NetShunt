@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"chenflow-go/internal/adapter"
@@ -30,7 +31,7 @@ type App struct {
 	store    *config.Store
 	adapters *adapter.Manager
 	engine   *routing.Engine
-	mu       sync.Mutex
+	mu       sync.RWMutex
 
 	customRules  []*models.SplitRule
 	ruleCounter  int
@@ -54,11 +55,11 @@ type App struct {
 	trafficInited bool
 
 	adapterLastStatus map[string]bool
-	hidden            bool
-	injectedRoutes    map[string]bool
+	hidden            atomic.Bool
+	injectedRoutes    sync.Map
 }
 
-const appVersion = "3.3.5"
+const appVersion = "3.3.6"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -80,7 +81,6 @@ func NewApp() *App {
 		presetAddr:        defaultPresetAddresses(),
 		adapterMon:        map[string]interface{}{"enabled": false, "monitored_adapters": []string{}},
 		adapterLastStatus: make(map[string]bool),
-		injectedRoutes:    make(map[string]bool),
 	}
 
 	a.adapters.Refresh()
@@ -112,19 +112,19 @@ func (a *App) startup(ctx context.Context) {
 			setHotkey(mods, vk)
 		}
 		hotkeyLoop(func() {
-			if a.hidden {
+			if a.hidden.Load() {
 				wailsruntime.WindowShow(a.ctx)
-				a.hidden = false
+				a.hidden.Store(false)
 			} else {
 				wailsruntime.WindowHide(a.ctx)
-				a.hidden = true
+				a.hidden.Store(true)
 			}
 		})
 	}()
 	go startTray(
 		func() {
 			wailsruntime.WindowShow(a.ctx)
-			a.hidden = false
+			a.hidden.Store(false)
 		},
 		func() {
 			stopTray()
@@ -363,11 +363,11 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		return map[string]interface{}{"ok": true}
 	case "show_window":
 		wailsruntime.WindowShow(a.ctx)
-		a.hidden = false
+		a.hidden.Store(false)
 		return map[string]interface{}{"ok": true}
 	case "hide_to_tray":
 		wailsruntime.WindowHide(a.ctx)
-		a.hidden = true
+		a.hidden.Store(true)
 		return map[string]interface{}{"ok": true}
 	case "get_close_action":
 		return map[string]interface{}{"action": a.store.GetCloseAction()}
@@ -1058,7 +1058,10 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			}
 			a.engine.SoftReset(rulesSnapshot, a.logFn(), progressFn)
 			a.mu.Lock()
-			a.injectedRoutes = make(map[string]bool)
+			a.injectedRoutes.Range(func(k, v interface{}) bool {
+				a.injectedRoutes.Delete(k)
+				return true
+			})
 			a.mu.Unlock()
 			if a.ctx != nil {
 				wailsruntime.EventsEmit(a.ctx, "reset:done", map[string]interface{}{"ok": true})
@@ -1132,13 +1135,15 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			for _, ip := range toDelete.IPs {
 				ipSet[ip] = true
 			}
-			for key := range a.injectedRoutes {
+			a.injectedRoutes.Range(func(k, v interface{}) bool {
+				key := k.(string)
 				cidr := strings.SplitN(key, "|", 2)[0]
 				ip := strings.SplitN(cidr, "/", 2)[0]
 				if ipSet[ip] {
-					delete(a.injectedRoutes, key)
+					a.injectedRoutes.Delete(key)
 				}
-			}
+				return true
+			})
 			a.mu.Unlock()
 			go a.engine.RemoveRuleRoutes(toDelete)
 		}
@@ -1777,7 +1782,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 		if s.IsFallback() {
 			currentRoute++
 			routeKey := fmt.Sprintf("0.0.0.0/0|%d|%s", idx, gw)
-			if a.injectedRoutes[routeKey] {
+			if _, ok := a.injectedRoutes.Load(routeKey); ok {
 				applied++
 				currentRoute++
 				messages = append(messages, fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name))
@@ -1789,7 +1794,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 			out := utils.RunCmd(cmd, 15)
 			if !utils.CmdFailed(out) {
 				applied++
-				a.injectedRoutes[routeKey] = true
+				a.injectedRoutes.Store(routeKey, true)
 				messages = append(messages, fmt.Sprintf("[%s] 默认路由 → %s IF %d ✓", s.Name, gw, idx))
 				a.log(fmt.Sprintf("[%s] 默认路由 → %s IF %d ✓", s.Name, gw, idx), "success")
 			} else {
@@ -1866,7 +1871,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 				cmd = fmt.Sprintf("route add %s mask 255.255.255.255 %s metric 1 IF %d", line, gw, idx)
 				routeKey = fmt.Sprintf("%s/32|%d|%s", line, idx, gw)
 			}
-			if a.injectedRoutes[routeKey] {
+			if _, ok := a.injectedRoutes.Load(routeKey); ok {
 				skipped++
 				currentRoute++
 				continue
@@ -1874,7 +1879,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 			out := utils.RunCmd(cmd, 10)
 			if !utils.CmdFailed(out) {
 				stratApplied++
-				a.injectedRoutes[routeKey] = true
+				a.injectedRoutes.Store(routeKey, true)
 			}
 			currentRoute++
 		}

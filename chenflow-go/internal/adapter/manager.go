@@ -197,13 +197,6 @@ func (m *Manager) syncRoles() {
 	}
 }
 
-func (m *Manager) SetRole(name string, role models.AdapterRole, mac string) {
-	m.store.SetRole(name, string(role), mac)
-	if p, ok := m.profiles[name]; ok {
-		p.Role = role
-	}
-}
-
 func (m *Manager) SyncRoles() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
