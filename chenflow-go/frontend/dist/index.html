@@ -120,6 +120,10 @@
           <select class="select" id="adapterSelect" style="width:240px">
             <option value="" data-i18n="traffic.select_placeholder">请选择...</option>
           </select>
+          <label style="display:flex;align-items:center;gap:6px;margin-left:16px;cursor:pointer;font-size:13px;color:var(--text-secondary)">
+            <input type="checkbox" id="persistentMonitor">
+            <span data-i18n="traffic.persistent_monitor">持久监控</span>
+          </label>
         </div>
 
         <div class="traffic-cards">
@@ -139,6 +143,10 @@
             <div class="stat-value text-success" id="upSpeed">0.00 KB/s</div>
             <div class="stat-total" id="upTotal">本次累计: 0.00 MB</div>
           </div>
+        </div>
+
+        <div class="card" id="trafficChartCard" style="flex:1;min-height:200px;overflow:hidden">
+          <div id="trafficCharts" style="padding:12px;height:100%;overflow-y:auto"></div>
         </div>
       </section>
 

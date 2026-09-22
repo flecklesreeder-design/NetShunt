@@ -60,9 +60,11 @@ type App struct {
 	logConfig         map[string]interface{}
 	processTraffic    map[string]map[string]uint64
 	trafficHistory    map[string]uint64
+	persistentMon     map[string]bool
+	trafficChartdata  map[string][]uint64
 }
 
-const appVersion = "3.5.0"
+const appVersion = "3.6.0"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -86,6 +88,8 @@ func NewApp() *App {
 		adapterLastStatus: make(map[string]bool),
 		processTraffic:    make(map[string]map[string]uint64),
 		trafficHistory:    make(map[string]uint64),
+		persistentMon:     make(map[string]bool),
+		trafficChartdata:  make(map[string][]uint64),
 	}
 
 	a.adapters.Refresh()
@@ -119,6 +123,7 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	go a.trafficMonitor()
+	go a.persistentTrafficMonitor()
 	go a.auditMonitor()
 	go a.cidrUpdateDaemon()
 	go a.adapterMonitorDaemon()
@@ -613,6 +618,25 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		}
 	case "get_audit":
 		return map[string]interface{}{"data": a.auditData}
+	case "get_persistent_monitors":
+		return map[string]interface{}{"monitors": a.persistentMon}
+	case "set_persistent_monitor":
+		adapter, _ := params["adapter"].(string)
+		enabled, _ := params["enabled"].(bool)
+		if adapter == "" {
+			return map[string]interface{}{"ok": false, "error": "网卡名不能为空"}
+		}
+		a.persistentMon[adapter] = enabled
+		if !enabled {
+			delete(a.trafficChartdata, adapter)
+		}
+		return map[string]interface{}{"ok": true}
+	case "get_traffic_charts":
+		charts := make(map[string]interface{})
+		for adapter, data := range a.trafficChartdata {
+			charts[adapter] = data
+		}
+		return map[string]interface{}{"charts": charts}
 	case "get_process_traffic":
 		result := make([]map[string]interface{}, 0)
 		for name, traffic := range a.processTraffic {
@@ -1375,6 +1399,42 @@ func (a *App) trafficMonitor() {
 		a.lastRecv = recv
 		a.lastSent = sent
 		lastTime = now
+	}
+}
+
+func (a *App) persistentTrafficMonitor() {
+	prevStats := make(map[string][2]uint64)
+	for a.monitorRun {
+		time.Sleep(2 * time.Second)
+		stats, err := psnet.IOCounters(true)
+		if err != nil {
+			continue
+		}
+		now := time.Now().Unix()
+		for _, s := range stats {
+			if !a.persistentMon[s.Name] {
+				continue
+			}
+			cur := [2]uint64{s.BytesRecv, s.BytesSent}
+			if prev, ok := prevStats[s.Name]; ok {
+				dlDelta := uint64(0)
+				upDelta := uint64(0)
+				if cur[0] >= prev[0] {
+					dlDelta = cur[0] - prev[0]
+				}
+				if cur[1] >= prev[1] {
+					upDelta = cur[1] - prev[1]
+				}
+				data := a.trafficChartdata[s.Name]
+				data = append(data, dlDelta, upDelta)
+				if len(data) > 120 {
+					data = data[len(data)-120:]
+				}
+				a.trafficChartdata[s.Name] = data
+			}
+			prevStats[s.Name] = cur
+		}
+		_ = now
 	}
 }
 

@@ -791,11 +791,12 @@ function highlightCloseOpt(action) {
 let _lastLogLen = 0;
 async function pollRealtimeData() {
   try {
-    const [logRes, statusRes, trafficRes, auditRes] = await Promise.all([
+    const [logRes, statusRes, trafficRes, auditRes, chartsRes] = await Promise.all([
       api('get_log'),
       api('get_status'),
       api('get_traffic'),
       api('get_audit'),
+      api('get_traffic_charts'),
     ]);
 
     if (logRes.log && logRes.log.length > _lastLogLen) {
@@ -827,7 +828,127 @@ async function pollRealtimeData() {
         body.appendChild(tr);
       });
     }
+
+    if (chartsRes && chartsRes.charts) {
+      drawTrafficCharts(chartsRes.charts);
+    }
   } catch (e) { console.error(e); }
+}
+
+function drawTrafficCharts(charts) {
+  const container = $('#trafficCharts');
+  if (!container) return;
+  const adapters = Object.keys(charts);
+  if (adapters.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px 0">' +
+      t('traffic.no_persistent') + '</div>';
+    return;
+  }
+
+  const containerH = container.clientHeight || 300;
+  const gap = adapters.length > 4 ? 4 : 8;
+  const chartH = Math.max(50, Math.min(160, Math.floor((containerH - gap * (adapters.length - 1)) / adapters.length)));
+
+  adapters.sort();
+  const existing = new Set();
+  adapters.forEach(adapter => {
+    const id = 'chart_' + adapter.replace(/[^a-zA-Z0-9]/g, '_');
+    existing.add(id);
+    let wrap = document.getElementById(id);
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = id;
+      wrap.style.cssText = 'margin-bottom:' + gap + 'px';
+      container.appendChild(wrap);
+    }
+    const data = charts[adapter] || [];
+    drawSingleChart(wrap, adapter, data, chartH);
+  });
+
+  Array.from(container.children).forEach(child => {
+    if (child.id && !existing.has(child.id)) container.removeChild(child);
+  });
+}
+
+function drawSingleChart(wrap, adapter, data, chartH) {
+  const W = wrap.clientWidth || 600;
+  const H = chartH;
+  const labelH = 16;
+  const canvasH = H - labelH;
+  let canvas = wrap.querySelector('canvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    wrap.appendChild(canvas);
+  }
+  if (canvas.width !== W || canvas.height !== H) {
+    canvas.width = W;
+    canvas.height = H;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = 'var(--text)';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(adapter + '  (' + t('traffic.chart_dl') + '/' + t('traffic.chart_up') + ')', 2, 1);
+
+  const points = Math.floor(data.length / 2);
+  if (points < 2) {
+    ctx.fillStyle = 'var(--text-muted)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t('traffic.collecting'), W / 2, H / 2);
+    return;
+  }
+
+  let maxVal = 1;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] > maxVal) maxVal = data[i];
+  }
+  const topPad = 4;
+  const botPad = 2;
+  const plotH = canvasH - topPad - botPad;
+  const plotY = labelH + topPad;
+  const stepX = W / (points - 1);
+
+  ctx.strokeStyle = 'rgba(128,128,128,0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = plotY + Math.floor(plotH * i / 4);
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  function drawLine(color, offset) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < points; i++) {
+      const val = data[i * 2 + offset];
+      const x = i * stepX;
+      const y = plotY + plotH - Math.floor(plotH * val / maxVal);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  drawLine('#22c55e', 0);
+  drawLine('#3b82f6', 1);
+
+  ctx.fillStyle = 'var(--text-muted)';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillText(formatRate(maxVal), W - 2, plotY);
+}
+
+function formatRate(bytesPerSec) {
+  if (bytesPerSec >= 1048576) return (bytesPerSec / 1048576).toFixed(1) + ' MB/s';
+  if (bytesPerSec >= 1024) return (bytesPerSec / 1024).toFixed(1) + ' KB/s';
+  return bytesPerSec + ' B/s';
 }
 
 // ===== 事件绑定 =====
@@ -869,6 +990,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 流量
   bindChange('#adapterSelect', () => api('select_traffic_adapter', {name: $('#adapterSelect').value}));
+  const pmCheckbox = $('#persistentMonitor');
+  if (pmCheckbox) {
+    pmCheckbox.onchange = () => {
+      const sel = $('#adapterSelect');
+      const adapter = sel ? sel.value : '';
+      if (!adapter) { showToast('请先选择网卡'); pmCheckbox.checked = false; return; }
+      api('set_persistent_monitor', {adapter, enabled: pmCheckbox.checked}).then(() => {
+        showToast(pmCheckbox.checked ? '已开启持久监控' : '已关闭持久监控');
+      });
+    };
+  }
 
   // 分析仪
   bindChange('#logSwitch', toggleLogging);
