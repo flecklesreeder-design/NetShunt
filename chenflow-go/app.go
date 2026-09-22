@@ -59,7 +59,7 @@ type App struct {
 	injectedRoutes    sync.Map
 }
 
-const appVersion = "3.3.6"
+const appVersion = "3.3.7"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -1712,6 +1712,9 @@ func (a *App) loadStrategyCacheFile(path string) []string {
 	return result
 }
 func (a *App) handleApplyStrategies() map[string]interface{} {
+	a.mu.RLock()
+	strategies := a.strategies
+	a.mu.RUnlock()
 	a.adapters.Refresh()
 	profiles := a.adapters.AllProfilesSorted()
 	profileMap := make(map[string]*models.AdapterProfile)
@@ -1720,7 +1723,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 	}
 
 	totalRoutes := 0
-	for _, s := range a.strategies {
+	for _, s := range strategies {
 		if !s.Enabled || s.Adapter == "" {
 			continue
 		}
@@ -1759,7 +1762,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 	var messages []string
 	currentRoute := 0
 
-	for _, s := range a.strategies {
+	for _, s := range strategies {
 		if !s.Enabled || s.Adapter == "" {
 			continue
 		}
