@@ -285,3 +285,15 @@ func (s *Store) LoadStrategies() interface{} {
 func (s *Store) SaveStrategies(data interface{}) error {
 	return writeJSON(s.p("strategies.json"), data)
 }
+func (s *Store) LoadInjectedRoutes() map[string]bool {
+	var m map[string]bool
+	readJSON(s.p("injected_routes.json"), &m)
+	if m == nil {
+		m = make(map[string]bool)
+	}
+	return m
+}
+
+func (s *Store) SaveInjectedRoutes(data map[string]bool) error {
+	return writeJSON(s.p("injected_routes.json"), data)
+}

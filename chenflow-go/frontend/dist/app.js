@@ -28,13 +28,33 @@ function api(method, params = {}) {
 function $(sel) { return document.querySelector(sel); }
 function $$(sel) { return document.querySelectorAll(sel); }
 
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function bindClick(sel, handler) {
+  const el = $(sel);
+  if (el) el.onclick = handler;
+}
+function bindChange(sel, handler) {
+  const el = $(sel);
+  if (el) el.onchange = handler;
+}
+
 function confirmDialog(message) {
   return new Promise(resolve => {
     const dialog = $('#confirmDialog');
     $('#confirmMessage').textContent = message;
     dialog.style.display = 'flex';
-    $('#confirmOk').onclick = () => { dialog.style.display = 'none'; resolve(true); };
-    $('#confirmCancel').onclick = () => { dialog.style.display = 'none'; resolve(false); };
+    const okBtn = $('#confirmOk');
+    const cancelBtn = $('#confirmCancel');
+    const newOk = okBtn.cloneNode(true);
+    const newCancel = cancelBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOk, okBtn);
+    cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+    newOk.onclick = () => { dialog.style.display = 'none'; resolve(true); };
+    newCancel.onclick = () => { dialog.style.display = 'none'; resolve(false); };
   });
 }
 
@@ -314,8 +334,11 @@ function renderAdapterList(profiles) {
     const statusColor = p.is_up ? 'online' : 'offline';
     const statusTip = p.is_up ? t('strategy.status.online') : t('strategy.status.offline');
     const gwMode = p.gateway_mode === 'manual' ? t('adapter.gateway_manual') : t('adapter.gateway_auto');
-    const gwValue = p.gateway_manual || p.gateway_auto || '';
-    const gwEffective = p.gateway || t('adapter.empty');
+    const gwValue = escapeHtml(p.gateway_manual || p.gateway_auto || '');
+    const gwEffective = escapeHtml(p.gateway || t('adapter.empty'));
+    const pName = escapeHtml(p.name);
+    const pIp = escapeHtml(p.ip || t('adapter.empty'));
+    const pIfIndex = escapeHtml(p.if_index || t('adapter.empty'));
 
     const sid = p.strategy_id;
     const boundStrat = strategyCache.find(s => s.id === sid);
@@ -328,15 +351,15 @@ function renderAdapterList(profiles) {
       <div class="adapter-status-dot ${statusColor}"></div>
       <span class="text-${p.is_up ? 'success' : 'danger'}" style="font-size:11px;width:32px">${statusTip}</span>
       <div class="adapter-info">
-        <div class="adapter-name">${p.name}</div>
-        <div class="adapter-detail">IP ${p.ip || t('adapter.empty')}  ·  ${t('adapter.gateway')} ${p.if_index || t('adapter.empty')}</div>
+        <div class="adapter-name">${pName}</div>
+        <div class="adapter-detail">IP ${pIp}  ·  ${t('adapter.gateway')} ${pIfIndex}</div>
         <div class="adapter-gw-row">
           <span class="text-tertiary" style="font-size:11px;width:28px">${t('adapter.gateway')}</span>
-          <select class="select select-sm gw-mode-sel" data-name="${p.name}" style="width:80px;height:24px">
+          <select class="select select-sm gw-mode-sel" data-name="${pName}" style="width:80px;height:24px">
             <option ${gwMode===t('adapter.gateway_auto')?'selected':''}>${t('adapter.gateway_auto')}</option>
             <option ${gwMode===t('adapter.gateway_manual')?'selected':''}>${t('adapter.gateway_manual')}</option>
           </select>
-          <input type="text" class="input input-sm gw-entry" data-name="${p.name}"
+          <input type="text" class="input input-sm gw-entry" data-name="${pName}"
                  value="${gwValue}" style="width:140px;height:24px"
                  ${p.gateway_mode !== 'manual' ? 'disabled' : ''}>
           <span class="text-secondary gw-effective" style="font-size:11px">${t('adapter.gateway_effective', gwEffective)}</span>
@@ -344,12 +367,12 @@ function renderAdapterList(profiles) {
       </div>
       <span class="role-badge" style="color:${tc[0]};background:${tc[1]}">${tl}</span>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:var(--text-secondary);white-space:nowrap;flex-shrink:0">
-        <input type="checkbox" class="default-exit-cb" data-name="${p.name}" ${isDefaultExit ? 'checked' : ''}>
+        <input type="checkbox" class="default-exit-cb" data-name="${pName}" ${isDefaultExit ? 'checked' : ''}>
         ${t('adapter.default_exit')}
       </label>
-      <select class="select select-sm strategy-sel" data-name="${p.name}" style="width:132px;height:32px">
+      <select class="select select-sm strategy-sel" data-name="${pName}" style="width:132px;height:32px">
         <option value="" ${sid == null || sid < 0 ? 'selected' : ''}>${t('adapter.no_bind')}</option>
-        ${strategyCache.filter(s => s.type !== 'fallback').map(s => `<option value="${s.id}" ${sid === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+        ${strategyCache.filter(s => s.type !== 'fallback').map(s => `<option value="${s.id}" ${sid === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
       </select>
     `;
     container.appendChild(row);
@@ -806,8 +829,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }).catch(() => {});
 
   // 标题栏窗口控制
-  $('#btnMinimize').onclick = () => api('minimise_window');
-  $('#btnMaximise').onclick = () => {
+  bindClick('#btnMinimize', () => api('minimise_window'));
+  bindClick('#btnMaximise', () => {
     const btn = $('#btnMaximise');
     if (btn.dataset.max === '1') {
       api('unmaximise_window');
@@ -818,8 +841,8 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="3" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><rect x="3" y="1" width="5" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
       btn.dataset.max = '1';
     }
-  };
-  $('#btnCloseWin').onclick = handleCloseWindow;
+  });
+  bindClick('#btnCloseWin', handleCloseWindow);
 
   // 导航
   $$('.nav-btn[data-page]').forEach(btn => {
@@ -830,33 +853,33 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 主页
-  $('#btnApply').onclick = applyRoles;
-  $('#guardSwitch').onchange = toggleGuard;
-  $('#btnClearLog').onclick = clearLog;
-  $('#btnOpenManager').onclick = openRuleManager;
+  bindClick('#btnApply', applyRoles);
+  bindChange('#guardSwitch', toggleGuard);
+  bindClick('#btnClearLog', clearLog);
+  bindClick('#btnOpenManager', openRuleManager);
 
   // 流量
-  $('#adapterSelect').onchange = () => api('select_traffic_adapter', {name: $('#adapterSelect').value});
+  bindChange('#adapterSelect', () => api('select_traffic_adapter', {name: $('#adapterSelect').value}));
 
   // 分析仪
-  $('#logSwitch').onchange = toggleLogging;
+  bindChange('#logSwitch', toggleLogging);
 
   // 诊断
-  $('#btnPing').onclick = runPing;
-  $('#btnTracert').onclick = runTracert;
-  $('#btnFlushDns').onclick = flushDns;
-  $('#btnNslookup').onclick = runNslookup;
-  $('#btnNetstat').onclick = runNetstat;
-  $('#btnRoutePrint').onclick = runRoutePrint;
-  $('#btnArpTable').onclick = runArpTable;
-  $('#btnIpconfig').onclick = runIpconfigAll;
-  $('#btnPortTest').onclick = runPortTest;
-  $('#btnSpeedTest').onclick = runSpeedTest;
+  bindClick('#btnPing', runPing);
+  bindClick('#btnTracert', runTracert);
+  bindClick('#btnFlushDns', flushDns);
+  bindClick('#btnNslookup', runNslookup);
+  bindClick('#btnNetstat', runNetstat);
+  bindClick('#btnRoutePrint', runRoutePrint);
+  bindClick('#btnArpTable', runArpTable);
+  bindClick('#btnIpconfig', runIpconfigAll);
+  bindClick('#btnPortTest', runPortTest);
+  bindClick('#btnSpeedTest', runSpeedTest);
 
   // 设置: 网卡管理
-  $('#btnRefreshAdapters').onclick = () => refreshAdapterManager();
-  $('#btnRecommendRoles').onclick = recommendRoles;
-  $('#btnApplyFromSettings').onclick = applyRoles;
+  bindClick('#btnRefreshAdapters', () => refreshAdapterManager());
+  bindClick('#btnRecommendRoles', recommendRoles);
+  bindClick('#btnApplyFromSettings', applyRoles);
 
   // 设置: 主题
   $$('.theme-card').forEach(card => {
@@ -891,16 +914,18 @@ document.addEventListener('DOMContentLoaded', () => {
       overlay.classList.add('active');
     };
   });
-  $('#imgPreviewOverlay').onclick = () => {
+  bindClick('#imgPreviewOverlay', () => {
     $('#imgPreviewOverlay').classList.remove('active');
-  };
+  });
 
   // 检查更新
-  $('#btnCheckUpdate').onclick = () => {
-    $('#updateStatus').textContent = t('update.checking');
-    $('#updateProgress').style.display = 'none';
+  bindClick('#btnCheckUpdate', () => {
+    const us = $('#updateStatus');
+    if (us) us.textContent = t('update.checking');
+    const up = $('#updateProgress');
+    if (up) up.style.display = 'none';
     api('check_update');
-  };
+  });
   window.runtime.EventsOn('update:result', (data) => {
     if (data.available) {
       $('#updateStatus').innerHTML = t('update.found', data.latest) + ' <button class="btn btn-sm btn-accent" id="btnDoUpdate" style="margin-left:8px">' + t('update.download_btn') + '</button>';
@@ -1110,6 +1135,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let currentStrategyType = 'online';
 let editingStrategyId = null;
+let strategyCacheFile = '';
 let strategyCache = [];
 
 const STRATEGY_TYPE_LABELS = {
@@ -1224,6 +1250,7 @@ function showStrategyDesc(type) {
 
 function openStrategyModal(strategy) {
   editingStrategyId = strategy ? strategy.id : null;
+  strategyCacheFile = (strategy && strategy.source && strategy.source.cache_file) || '';
   $('#strategyModal').style.display = 'flex';
   const titleEl = $('#strategyModalTitle');
   if (titleEl) titleEl.textContent = strategy ? t('strategy.modal_title_edit') : t('strategy.modal_title_new');
@@ -1272,6 +1299,7 @@ function openStrategyModal(strategy) {
 function closeStrategyModal() {
   $('#strategyModal').style.display = 'none';
   editingStrategyId = null;
+  strategyCacheFile = '';
 }
 
 function switchStrategyType(type) {
@@ -1296,7 +1324,7 @@ async function syncNow() {
     const res = await api('sync_strategy_url', { url });
     if (res && res.ok) {
       const count = res.count || 0;
-      if (res.cache_file) window._strategyCacheFile = res.cache_file;
+      if (res.cache_file) strategyCacheFile = res.cache_file;
       setSyncStatus('success', `同步成功 · ${count} 条地址（已缓存到本地）`);
       if (editingStrategyId !== null) {
         const strategy = {
@@ -1310,7 +1338,7 @@ async function syncNow() {
             update_interval: parseInt($('#strategyInterval').value) || 24,
             update_unit: $('#strategyUnit').value,
             sync_status: 'success',
-            cache_file: window._strategyCacheFile || '',
+            cache_file: strategyCacheFile || '',
           },
         };
         await api('update_strategy', { strategy, id: editingStrategyId });
@@ -1370,7 +1398,7 @@ async function createStrategy() {
       update_interval: parseInt($('#strategyInterval').value) || 24,
       update_unit: $('#strategyUnit').value,
       sync_status: 'idle',
-      cache_file: window._strategyCacheFile || '',
+      cache_file: strategyCacheFile || '',
     };
   } else {
     const text = $('#strategyAddresses').value.trim();

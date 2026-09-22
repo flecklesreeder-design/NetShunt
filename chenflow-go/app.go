@@ -59,7 +59,7 @@ type App struct {
 	injectedRoutes    sync.Map
 }
 
-const appVersion = "3.3.7"
+const appVersion = "3.3.8"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -87,6 +87,11 @@ func NewApp() *App {
 	a.customRules = a.loadRulesFromStore()
 	a.strategies = a.loadStrategiesFromStore()
 	a.cidrCache = a.store.LoadCIDRCache()
+	for k, v := range a.store.LoadInjectedRoutes() {
+		if v {
+			a.injectedRoutes.Store(k, true)
+		}
+	}
 	a.presetAddr = a.mergePresetAddresses(a.store.LoadPresetAddresses())
 	a.adapterMon = a.mergeAdapterMonitor(a.store.LoadAdapterMonitor())
 	a.autoBindMACs()
@@ -173,6 +178,7 @@ func (a *App) updateRoleStatus() {
 	}
 	var parts []string
 	anyBound := false
+	a.mu.Lock()
 	for _, p := range profiles {
 		stratName := notAssigned
 		for _, s := range a.strategies {
@@ -207,6 +213,7 @@ func (a *App) updateRoleStatus() {
 		"text":  text,
 		"color": color,
 	}
+	a.mu.Unlock()
 }
 
 func (a *App) autoBindMACs() {
@@ -262,14 +269,18 @@ func (a *App) autoCheckUpdate() {
 }
 
 func (a *App) applyRulesOnStartup() {
-	if len(a.customRules) == 0 {
+	a.mu.RLock()
+	rulesSnapshot := make([]*models.SplitRule, len(a.customRules))
+	copy(rulesSnapshot, a.customRules)
+	a.mu.RUnlock()
+	if len(rulesSnapshot) == 0 {
 		return
 	}
 	a.adapters.Refresh()
 	if len(a.adapters.ReadyAdapters()) == 0 {
 		return
 	}
-	a.engine.ApplyAllRules(a.customRules, nil, nil)
+	a.engine.ApplyAllRules(rulesSnapshot, nil, nil)
 }
 
 func (a *App) loadRulesFromStore() []*models.SplitRule {
@@ -385,11 +396,12 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		wailsruntime.WindowUnmaximise(a.ctx)
 		return map[string]interface{}{"ok": true}
 	case "get_strategies":
-
+		a.mu.RLock()
 		list := make([]interface{}, len(a.strategies))
 		for i, s := range a.strategies {
 			list[i] = s
 		}
+		a.mu.RUnlock()
 		return map[string]interface{}{"strategies": list}
 	case "sync_strategy_url":
 		return a.handleSyncStrategyURL(params)
@@ -533,7 +545,11 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		a.log(fmt.Sprintf("全局快捷键已设为 %s", hotkeyToString(mods, vk)), "info")
 		return map[string]interface{}{"ok": true, "hotkey": hotkeyToString(mods, vk)}
 	case "get_status":
-		return map[string]interface{}{"text": a.status["text"], "color": a.status["color"]}
+		a.mu.RLock()
+		statusText := a.status["text"]
+		statusColor := a.status["color"]
+		a.mu.RUnlock()
+		return map[string]interface{}{"text": statusText, "color": statusColor}
 	case "get_log":
 		a.mu.Lock()
 		log := strings.Join(a.logBuffer, "\n")
@@ -743,6 +759,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		a.adapters.RefreshLight()
 		profiles := a.adapters.AllProfilesSorted()
 		var result []map[string]interface{}
+		a.mu.RLock()
 		for _, p := range profiles {
 			strategyName := ""
 			strategyID := -1
@@ -771,6 +788,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 				"is_default_exit": p.Name == a.store.GetDefaultExitAdapter(),
 			})
 		}
+		a.mu.RUnlock()
 		if len(result) == 0 {
 			result = []map[string]interface{}{}
 		}
@@ -830,6 +848,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 	case "set_default_exit":
 		adapterName, _ := params["adapter_name"].(string)
 		enabled, _ := params["enabled"].(bool)
+		a.mu.Lock()
 		if enabled {
 			a.store.SetDefaultExitAdapter(adapterName)
 			for _, s := range a.strategies {
@@ -851,6 +870,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			}
 			a.log(fmt.Sprintf("网卡 [%s] 已取消默认出口。", adapterName), "info")
 		}
+		a.mu.Unlock()
 		a.saveStrategies()
 		a.updateRoleStatus()
 		return map[string]interface{}{"ok": true}
@@ -1044,8 +1064,12 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		return map[string]interface{}{"ok": true}
 	case "emergency_reset":
 		a.engine.StopGuard()
+		a.mu.Lock()
 		rulesSnapshot := make([]*models.SplitRule, len(a.customRules))
 		copy(rulesSnapshot, a.customRules)
+		a.customRules = []*models.SplitRule{}
+		a.mu.Unlock()
+		a.store.SaveRules(a.customRules)
 		go func() {
 			progressFn := func(current, total int, message string) {
 				if a.ctx != nil {
@@ -1063,14 +1087,15 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 				return true
 			})
 			a.mu.Unlock()
+			a.store.SaveInjectedRoutes(make(map[string]bool))
 			if a.ctx != nil {
 				wailsruntime.EventsEmit(a.ctx, "reset:done", map[string]interface{}{"ok": true})
 			}
 		}()
-		a.customRules = []*models.SplitRule{}
-		a.store.SaveRules(a.customRules)
+
 		return map[string]interface{}{"ok": true, "async": true}
 	case "get_rules":
+		a.mu.RLock()
 		var result []map[string]interface{}
 		for _, r := range a.customRules {
 			result = append(result, map[string]interface{}{
@@ -1085,6 +1110,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		if len(result) == 0 {
 			result = []map[string]interface{}{}
 		}
+		a.mu.RUnlock()
 		return map[string]interface{}{"rules": result}
 	case "add_rule":
 		rType, _ := params["type"].(string)
@@ -1108,16 +1134,21 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		} else {
 			resolvedIPs = []string{target}
 		}
+		a.mu.Lock()
 		a.ruleCounter++
 		a.customRules = append(a.customRules, &models.SplitRule{
 			ID: a.ruleCounter, Type: rType, Target: target,
 			IPs: resolvedIPs, Adapter: adapterName, Status: "Pending",
 		})
-		a.store.SaveRules(a.customRules)
+		rulesToSave := make([]*models.SplitRule, len(a.customRules))
+		copy(rulesToSave, a.customRules)
+		a.mu.Unlock()
+		a.store.SaveRules(rulesToSave)
 		return map[string]interface{}{"ok": true}
 	case "delete_rule":
 		idF, _ := params["id"].(float64)
 		ruleID := int(idF)
+		a.mu.Lock()
 		var toDelete *models.SplitRule
 		var filtered []*models.SplitRule
 		for _, r := range a.customRules {
@@ -1128,7 +1159,10 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			}
 		}
 		a.customRules = filtered
-		a.store.SaveRules(a.customRules)
+		rulesToSave := make([]*models.SplitRule, len(a.customRules))
+		copy(rulesToSave, a.customRules)
+		a.mu.Unlock()
+		a.store.SaveRules(rulesToSave)
 		if toDelete != nil {
 			a.mu.Lock()
 			ipSet := make(map[string]bool)
@@ -1149,6 +1183,10 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		}
 		return map[string]interface{}{"ok": true}
 	case "apply_all_rules":
+		a.mu.RLock()
+		rulesSnapshot := make([]*models.SplitRule, len(a.customRules))
+		copy(rulesSnapshot, a.customRules)
+		a.mu.RUnlock()
 		go func() {
 			a.adapters.Refresh()
 			if len(a.adapters.ReadyAdapters()) == 0 {
@@ -1169,7 +1207,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 					})
 				}
 			}
-			a.engine.ApplyAllRules(a.customRules, func(applied, failed int, _ []string) {
+			a.engine.ApplyAllRules(rulesSnapshot, func(applied, failed int, _ []string) {
 				if applied > 0 {
 					a.log(fmt.Sprintf("成功执行了 %d 条策略。", applied), "success")
 				}
@@ -1499,7 +1537,11 @@ func (a *App) loadStrategiesFromStore() []*models.Strategy {
 }
 
 func (a *App) saveStrategies() {
-	a.store.SaveStrategies(a.strategies)
+	a.mu.RLock()
+	snapshot := make([]*models.Strategy, len(a.strategies))
+	copy(snapshot, a.strategies)
+	a.mu.RUnlock()
+	a.store.SaveStrategies(snapshot)
 }
 
 func (a *App) handleCreateStrategy(params map[string]interface{}) map[string]interface{} {
@@ -1537,7 +1579,7 @@ func (a *App) handleUpdateStrategy(params map[string]interface{}) map[string]int
 				s.Adapter = existing.Adapter
 			}
 			a.strategies[i] = s
-			a.saveStrategies()
+			a.store.SaveStrategies(a.strategies)
 			return map[string]interface{}{"ok": true, "strategy": s}
 		}
 	}
@@ -1564,7 +1606,7 @@ func (a *App) handleDeleteStrategy(params map[string]interface{}) map[string]int
 		return map[string]interface{}{"ok": false, "error": "策略不存在"}
 	}
 	a.strategies = append(a.strategies[:deleteIdx], a.strategies[deleteIdx+1:]...)
-	a.saveStrategies()
+	a.store.SaveStrategies(a.strategies)
 	a.mu.Unlock()
 
 	if toDelete != nil {
@@ -1680,11 +1722,13 @@ func (a *App) cleanupOldCacheFiles(keepFile string) {
 		return
 	}
 	keepSet := map[string]bool{keepFile: true}
+	a.mu.RLock()
 	for _, s := range a.strategies {
 		if s.Source != nil && s.Source.CacheFile != "" {
 			keepSet[s.Source.CacheFile] = true
 		}
 	}
+	a.mu.RUnlock()
 	for _, entry := range entries {
 		name := entry.Name()
 		if !strings.HasPrefix(name, "strategy_cache_") || !strings.HasSuffix(name, ".txt") {
@@ -1787,7 +1831,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 			routeKey := fmt.Sprintf("0.0.0.0/0|%d|%s", idx, gw)
 			if _, ok := a.injectedRoutes.Load(routeKey); ok {
 				applied++
-				currentRoute++
+
 				messages = append(messages, fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name))
 				a.log(fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name), "info")
 				continue
@@ -1902,6 +1946,13 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 		"failed":   failed,
 		"messages": messages,
 	}
+
+	saveMap := make(map[string]bool)
+	a.injectedRoutes.Range(func(k, v interface{}) bool {
+		saveMap[k.(string)] = true
+		return true
+	})
+	a.store.SaveInjectedRoutes(saveMap)
 
 	a.log(fmt.Sprintf("策略应用完成: 成功 %d, 失败 %d", applied, failed), "info")
 

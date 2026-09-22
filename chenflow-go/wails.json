@@ -1,7 +1,7 @@
 {
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "NetShunt",
-  "version": "3.3.7",
+  "version": "3.3.8",
   "outputfilename": "NetShunt",
   "frontend:install": "",
   "frontend:build": "",
@@ -14,9 +14,9 @@
   "info": {
     "companyName": "chen",
     "productName": "NetShunt",
-    "productVersion": "3.3.7",
+    "productVersion": "3.3.8",
     "copyright": "Copyright © chen",
     "comments": "NetShunt - 网络分流管理工具",
-    "fileVersion": "3.3.7.0.0"
+    "fileVersion": "3.3.8.0.0"
   }
 }
