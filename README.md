@@ -28,7 +28,7 @@ NetShunt 是一款面向 Windows 工程师、IT 运维人员和高级个人用�
 
 ## 截图
 
-| 首页 | 策略路由 | 诊断工具 |
+| 首页 |诊断工具 | 策略路由  |
 |:---:|:---:|:---:|
 | ![](screenshots/home.png) | ![](screenshots/strategy.png) | ![](screenshots/diagnostic.png) |
 
