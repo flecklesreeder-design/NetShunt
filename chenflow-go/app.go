@@ -58,7 +58,7 @@ type App struct {
 	injectedRoutes    map[string]bool
 }
 
-const appVersion = "3.3.3"
+const appVersion = "3.3.4"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -350,6 +350,11 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 	switch method {
 
 	case "close_window":
+		a.mu.Lock()
+		a.monitorRun = false
+		a.mu.Unlock()
+		a.engine.StopGuard()
+		stopHotkey()
 		stopTray()
 		wailsruntime.Quit(a.ctx)
 		return map[string]interface{}{"ok": true}
@@ -397,6 +402,8 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 	case "apply_strategies":
 		go a.handleApplyStrategies()
 		return map[string]interface{}{"ok": true, "async": true}
+	case "get_version":
+		return map[string]interface{}{"version": appVersion}
 	case "get_theme":
 		return map[string]interface{}{"theme": a.store.GetTheme()}
 	case "set_theme":
@@ -1115,6 +1122,19 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		a.customRules = filtered
 		a.store.SaveRules(a.customRules)
 		if toDelete != nil {
+			a.mu.Lock()
+			ipSet := make(map[string]bool)
+			for _, ip := range toDelete.IPs {
+				ipSet[ip] = true
+			}
+			for key := range a.injectedRoutes {
+				cidr := strings.SplitN(key, "|", 2)[0]
+				ip := strings.SplitN(cidr, "/", 2)[0]
+				if ipSet[ip] {
+					delete(a.injectedRoutes, key)
+				}
+			}
+			a.mu.Unlock()
 			go a.engine.RemoveRuleRoutes(toDelete)
 		}
 		return map[string]interface{}{"ok": true}
@@ -1395,6 +1415,15 @@ func (a *App) adapterMonitorDaemon() {
 				showWindowsNotification("NetShunt 网卡恢复", fmt.Sprintf("网卡 [%s] 已恢复连接。", adp))
 			}
 			a.adapterLastStatus[adp] = currentUp
+		}
+		monitoredSet := make(map[string]bool)
+		for _, adp := range monitored {
+			monitoredSet[adp] = true
+		}
+		for k := range a.adapterLastStatus {
+			if !monitoredSet[k] {
+				delete(a.adapterLastStatus, k)
+			}
 		}
 	}
 }

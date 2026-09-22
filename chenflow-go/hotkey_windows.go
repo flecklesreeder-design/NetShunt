@@ -49,10 +49,16 @@ type hotkeyRequest struct {
 }
 
 var (
-	currentHotkey = hotkeyConfig{mods: modCtrl | modAlt, vk: 0x48}
-	hotkeyMu      sync.RWMutex
-	hotkeyReqCh   = make(chan hotkeyRequest, 1)
+	currentHotkey  = hotkeyConfig{mods: modCtrl | modAlt, vk: 0x48}
+	hotkeyMu       sync.RWMutex
+	hotkeyReqCh    = make(chan hotkeyRequest, 1)
+	hotkeyQuitCh   = make(chan struct{})
+	hotkeyQuitOnce sync.Once
 )
+
+func stopHotkey() {
+	hotkeyQuitOnce.Do(func() { close(hotkeyQuitCh) })
+}
 
 const defaultHotkey = "ctrl+alt+h"
 
@@ -81,10 +87,12 @@ func setHotkey(mods, vk int) bool {
 		}
 		hotkeyReqCh <- req
 	}
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
 	select {
 	case ok := <-reply:
 		return ok
-	case <-time.After(2 * time.Second):
+	case <-timer.C:
 		return false
 	}
 }
@@ -99,6 +107,8 @@ func hotkeyLoop(onTrigger func()) {
 	var lastTrigger time.Time
 	for {
 		select {
+		case <-hotkeyQuitCh:
+			return
 		case req := <-hotkeyReqCh:
 			unregisterHotKey()
 			hotkeyMu.Lock()

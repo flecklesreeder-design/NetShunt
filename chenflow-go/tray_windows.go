@@ -15,6 +15,7 @@ var (
 	trayOnShow       func()
 	trayOnQuit       func()
 	trayStarted      bool
+	trayQuitCh       = make(chan struct{})
 )
 
 func startTray(onShow, onQuit func()) {
@@ -36,6 +37,8 @@ func onTrayReady() {
 	go func() {
 		for {
 			select {
+			case <-trayQuitCh:
+				return
 			case <-trayMenuItemShow.ClickedCh:
 				if trayOnShow != nil {
 					trayOnShow()
@@ -55,6 +58,7 @@ func onTrayExit() {
 
 func stopTray() {
 	if trayStarted {
+		close(trayQuitCh)
 		systray.Quit()
 	}
 }

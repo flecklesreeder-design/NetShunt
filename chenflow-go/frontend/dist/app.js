@@ -812,6 +812,10 @@ async function pollRealtimeData() {
 // ===== 事件绑定 =====
 document.addEventListener('DOMContentLoaded', () => {
 
+  api('get_version').then(r => {
+    if (r && r.version && typeof setAppVersion === 'function') setAppVersion(r.version);
+  }).catch(() => {});
+
   // 标题栏窗口控制
   $('#btnMinimize').onclick = () => api('minimise_window');
   $('#btnMaximise').onclick = () => {

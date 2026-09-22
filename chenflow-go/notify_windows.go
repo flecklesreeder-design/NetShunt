@@ -21,5 +21,7 @@ $n.Dispose()`,
 		strings.ReplaceAll(message, "'", "''"),
 	)
 	cmd := exec.Command("powershell", "-NoProfile", "-Command", ps)
-	cmd.Start()
+	if err := cmd.Start(); err == nil {
+		go cmd.Wait()
+	}
 }
