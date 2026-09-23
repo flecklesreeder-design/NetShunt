@@ -840,14 +840,21 @@ function drawTrafficCharts(charts) {
   if (!container) return;
   const adapters = Object.keys(charts);
   if (adapters.length === 0) {
-    container.innerHTML = '<div style="text-align:center;color:#999;padding:40px 0">' +
+    container.innerHTML = '<div style="text-align:center;color:#888;padding:48px 0;font-size:13px">' +
       t('traffic.no_persistent') + '</div>';
     return;
   }
 
-  const containerH = container.clientHeight || 300;
-  const gap = adapters.length > 4 ? 4 : 8;
-  const chartH = Math.max(60, Math.min(180, Math.floor((containerH - gap * (adapters.length - 1)) / adapters.length)));
+  const containerH = container.clientHeight || 380;
+  const gap = 8;
+  let cardH;
+  if (adapters.length === 1) {
+    cardH = Math.min(containerH, 220);
+  } else if (adapters.length === 2) {
+    cardH = Math.min(Math.floor((containerH - gap) / 2), 200);
+  } else {
+    cardH = 180;
+  }
 
   adapters.sort();
   const existing = new Set();
@@ -861,7 +868,7 @@ function drawTrafficCharts(charts) {
       wrap.style.cssText = 'margin-bottom:' + gap + 'px';
       container.appendChild(wrap);
     }
-    drawSingleChart(wrap, adapter, charts[adapter], chartH);
+    drawAdapterChart(wrap, adapter, charts[adapter], cardH);
   });
 
   Array.from(container.children).forEach(child => {
@@ -869,13 +876,26 @@ function drawTrafficCharts(charts) {
   });
 }
 
-function drawSingleChart(wrap, adapter, info, chartH) {
+function drawAdapterChart(wrap, adapter, info, cardH) {
   const W = wrap.clientWidth || 600;
-  const H = chartH;
-  const headerH = 16;
-  const canvasH = H - headerH;
-  const gap = 6;
-  const halfW = Math.floor((W - gap) / 2);
+  const H = cardH;
+  let canvas = wrap.querySelector('canvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    wrap.appendChild(canvas);
+  }
+  if (canvas.width !== W || canvas.height !== H) {
+    canvas.width = W;
+    canvas.height = H;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0.5, 0.5, W - 1, H - 1);
 
   const rtDl = info.rt_dl || 0;
   const rtUp = info.rt_up || 0;
@@ -883,44 +903,91 @@ function drawSingleChart(wrap, adapter, info, chartH) {
   const totalUp = info.total_up || 0;
   const data = info.history || [];
 
-  let canvases = wrap.querySelectorAll('canvas');
-  while (canvases.length < 2) {
-    const c = document.createElement('canvas');
-    c.style.cssText = 'display:inline-block;vertical-align:top';
-    wrap.appendChild(c);
-    canvases = wrap.querySelectorAll('canvas');
-  }
-  canvases[0].style.marginRight = gap + 'px';
-
-  drawHalfChart(canvases[0], halfW, canvasH, headerH,
-    adapter + ' \u2193' + t('traffic.chart_dl') + '  ' + formatRate(rtDl) + '  \u7D2F\u8BA1:' + formatBytes(totalDl),
-    data, 0, '#22c55e');
-  drawHalfChart(canvases[1], halfW, canvasH, headerH,
-    adapter + ' \u2191' + t('traffic.chart_up') + '  ' + formatRate(rtUp) + '  \u7D2F\u8BA1:' + formatBytes(totalUp),
-    data, 1, '#3b82f6');
-}
-
-function drawHalfChart(canvas, W, canvasH, headerH, label, data, offset, color) {
-  if (canvas.width !== W || canvas.height !== canvasH) {
-    canvas.width = W;
-    canvas.height = canvasH;
-  }
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, W, canvasH);
-
-  ctx.fillStyle = '#e0e0e0';
-  ctx.font = '11px sans-serif';
+  const headerH = 28;
+  const axisH = 16;
+  ctx.fillStyle = '#e8e8e8';
+  ctx.font = 'bold 12px "Segoe UI",sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(label, 2, 1);
+  ctx.fillText(adapter, 10, 6);
+
+  let xOff = 10 + ctx.measureText(adapter).width + 14;
+  ctx.fillStyle = '#22c55e';
+  ctx.font = '11px "Segoe UI",sans-serif';
+  const dlStr = '\u2193 ' + formatRate(rtDl);
+  ctx.fillText(dlStr, xOff, 7);
+  xOff += ctx.measureText(dlStr).width + 14;
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillText('\u2191 ' + formatRate(rtUp), xOff, 7);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '10px "Segoe UI",sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText(t('traffic.cumulative') + ': \u2193' + formatBytes(totalDl) + '  \u2191' + formatBytes(totalUp), W - 10, 8);
+
+  const points = Math.floor(data.length / 2);
+  const axisY = headerH;
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, axisY + axisH - 1);
+  ctx.lineTo(W, axisY + axisH - 1);
+  ctx.stroke();
+
+  ctx.fillStyle = '#777';
+  ctx.font = '9px "Segoe UI",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const ticks = 6;
+  for (let i = 0; i < ticks; i++) {
+    const ratio = i / (ticks - 1);
+    const tx = Math.round(ratio * W);
+    const totalSec = points * 60;
+    const secAgo = Math.round(totalSec * (1 - ratio));
+    let label;
+    if (secAgo === 0) label = 'now';
+    else if (secAgo >= 3600) label = '-' + Math.round(secAgo / 3600) + 'h';
+    else if (secAgo >= 60) label = '-' + Math.round(secAgo / 60) + 'm';
+    else label = '-' + secAgo + 's';
+    ctx.fillText(label, tx, axisY + 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.beginPath();
+    ctx.moveTo(tx, axisY + axisH - 4);
+    ctx.lineTo(tx, axisY + axisH - 1);
+    ctx.stroke();
+  }
+
+  const chartStartY = headerH + axisH;
+  const dlY = chartStartY;
+  const dlH = Math.floor((H - chartStartY - 4) / 2);
+  const upY = dlY + dlH + 2;
+  const upH = H - upY - 2;
+
+  drawWaveform(ctx, data, 0, '#22c55e', 0, dlY, W, dlH, t('traffic.chart_dl'));
+  drawWaveform(ctx, data, 1, '#3b82f6', 0, upY, W, upH, t('traffic.chart_up'));
+}
+
+function drawWaveform(ctx, data, offset, color, x, y, w, h, label) {
+  const labelH = 14;
+  const plotY = y + labelH;
+  const plotH = h - labelH;
+  if (plotH < 8) return;
+
+  ctx.fillStyle = color;
+  ctx.font = '10px "Segoe UI",sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.globalAlpha = 0.7;
+  ctx.fillText(label, x + 8, y + 1);
+  ctx.globalAlpha = 1;
 
   const points = Math.floor(data.length / 2);
   if (points < 2) {
-    ctx.fillStyle = '#999';
-    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#666';
+    ctx.font = '10px "Segoe UI",sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(t('traffic.collecting'), W / 2, canvasH / 2);
+    ctx.fillText(t('traffic.collecting'), x + w / 2, y + h / 2);
     return;
   }
 
@@ -932,38 +999,55 @@ function drawHalfChart(canvas, W, canvasH, headerH, label, data, offset, color) 
     if (v > maxVal) maxVal = v;
   }
 
-  const topPad = 4;
-  const botPad = 2;
-  const plotH = canvasH - headerH - topPad - botPad;
-  const plotY = headerH + topPad;
-  const stepX = W / Math.max(points - 1, 1);
+  ctx.fillStyle = '#777';
+  ctx.font = '9px "Segoe UI",sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillText(formatRate(maxVal), x + w - 6, y + 1);
 
-  ctx.strokeStyle = 'rgba(128,128,128,0.12)';
+  const stepX = w / Math.max(points - 1, 1);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
   ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = plotY + Math.floor(plotH * i / 4);
+  ctx.setLineDash([2, 4]);
+  for (let i = 1; i <= 3; i++) {
+    const gy = plotY + Math.floor(plotH * i / 4);
     ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(W, y);
+    ctx.moveTo(x, gy);
+    ctx.lineTo(x + w, gy);
     ctx.stroke();
   }
+  ctx.setLineDash([]);
 
+  const grad = ctx.createLinearGradient(0, plotY, 0, plotY + plotH);
+  grad.addColorStop(0, color + '40');
+  grad.addColorStop(1, color + '05');
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(x, plotY + plotH);
+  for (let i = 0; i < points; i++) {
+    const px = x + i * stepX;
+    const py = plotY + plotH - Math.floor(plotH * vals[i] / maxVal);
+    ctx.lineTo(px, py);
+  }
+  ctx.lineTo(x + w, plotY + plotH);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 4;
   ctx.strokeStyle = color;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   for (let i = 0; i < points; i++) {
-    const x = i * stepX;
-    const y = plotY + plotH - Math.floor(plotH * vals[i] / maxVal);
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    const px = x + i * stepX;
+    const py = plotY + plotH - Math.floor(plotH * vals[i] / maxVal);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
   }
   ctx.stroke();
-
-  ctx.fillStyle = '#999';
-  ctx.font = '9px sans-serif';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  ctx.fillText(formatRate(maxVal), W - 2, plotY);
+  ctx.shadowBlur = 0;
 }
 
 function formatRate(bytesPerSec) {
@@ -1017,15 +1101,24 @@ document.addEventListener('DOMContentLoaded', () => {
   bindClick('#btnOpenManager', openRuleManager);
 
   // 流量
-  bindChange('#adapterSelect', () => api('select_traffic_adapter', {name: $('#adapterSelect').value}));
+  bindChange('#adapterSelect', () => {
+    const adapter = $('#adapterSelect').value;
+    api('select_traffic_adapter', {name: adapter});
+    api('get_persistent_monitors').then(r => {
+      const cb = $('#persistentMonitor');
+      if (cb && r && r.monitors) {
+        cb.checked = !!r.monitors[adapter];
+      }
+    }).catch(() => {});
+  });
   const pmCheckbox = $('#persistentMonitor');
   if (pmCheckbox) {
     pmCheckbox.onchange = () => {
       const sel = $('#adapterSelect');
       const adapter = sel ? sel.value : '';
-      if (!adapter) { showToast('请先选择网卡'); pmCheckbox.checked = false; return; }
+      if (!adapter) { showToast(t('traffic.select_first')); pmCheckbox.checked = false; return; }
       api('set_persistent_monitor', {adapter, enabled: pmCheckbox.checked}).then(() => {
-        showToast(pmCheckbox.checked ? '已开启持久监控' : '已关闭持久监控');
+        showToast(pmCheckbox.checked ? t('traffic.pm_on') : t('traffic.pm_off'));
       });
     };
   }
