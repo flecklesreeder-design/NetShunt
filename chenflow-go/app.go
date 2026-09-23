@@ -67,7 +67,7 @@ type App struct {
 	trafficTotal      map[string][2]uint64
 }
 
-const appVersion = "3.6.5"
+const appVersion = "3.6.6"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -609,29 +609,47 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		return map[string]interface{}{"names": names}
 	case "select_traffic_adapter":
 		if v, ok := params["name"].(string); ok {
+			a.mu.Lock()
 			a.trafficAdap = v
 			a.trafficInited = false
 			a.trafficData = map[string]string{
 				"dl_s": "0.00 B/s", "up_s": "0.00 B/s",
 				"dl_t": "0.00 B", "up_t": "0.00 B",
 			}
+			a.mu.Unlock()
 		}
 		return map[string]interface{}{"ok": true}
 	case "get_traffic":
-		return map[string]interface{}{
+		a.mu.RLock()
+		trafficSnapshot := map[string]string{
 			"dl_s": a.trafficData["dl_s"], "up_s": a.trafficData["up_s"],
 			"dl_t": a.trafficData["dl_t"], "up_t": a.trafficData["up_t"],
 		}
+		a.mu.RUnlock()
+		return map[string]interface{}{
+			"dl_s": trafficSnapshot["dl_s"], "up_s": trafficSnapshot["up_s"],
+			"dl_t": trafficSnapshot["dl_t"], "up_t": trafficSnapshot["up_t"],
+		}
 	case "get_audit":
-		return map[string]interface{}{"data": a.auditData}
+		a.mu.RLock()
+		auditSnapshot := a.auditData
+		a.mu.RUnlock()
+		return map[string]interface{}{"data": auditSnapshot}
 	case "get_persistent_monitors":
-		return map[string]interface{}{"monitors": a.persistentMon}
+		a.mu.RLock()
+		monSnapshot := make(map[string]bool, len(a.persistentMon))
+		for k, v := range a.persistentMon {
+			monSnapshot[k] = v
+		}
+		a.mu.RUnlock()
+		return map[string]interface{}{"monitors": monSnapshot}
 	case "set_persistent_monitor":
 		adapter, _ := params["adapter"].(string)
 		enabled, _ := params["enabled"].(bool)
 		if adapter == "" {
 			return map[string]interface{}{"ok": false, "error": "网卡名不能为空"}
 		}
+		a.mu.Lock()
 		a.persistentMon[adapter] = enabled
 		if !enabled {
 			delete(a.traffic24h, adapter)
@@ -639,8 +657,10 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			delete(a.trafficRealtime, adapter)
 			delete(a.trafficTotal, adapter)
 		}
+		a.mu.Unlock()
 		return map[string]interface{}{"ok": true}
 	case "get_traffic_charts":
+		a.mu.RLock()
 		charts := make(map[string]interface{})
 		for adapter, enabled := range a.persistentMon {
 			if !enabled {
@@ -659,8 +679,10 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			}
 			charts[adapter] = entry
 		}
+		a.mu.RUnlock()
 		return map[string]interface{}{"charts": charts, "now": time.Now().Unix()}
 	case "get_process_traffic":
+		a.mu.RLock()
 		result := make([]map[string]interface{}, 0)
 		for name, traffic := range a.processTraffic {
 			result = append(result, map[string]interface{}{
@@ -669,9 +691,13 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 				"up":      traffic["up"],
 			})
 		}
+		a.mu.RUnlock()
 		return map[string]interface{}{"processes": result}
 	case "get_log_config":
-		return a.logConfig
+		a.mu.RLock()
+		logCfgSnapshot := a.logConfig
+		a.mu.RUnlock()
+		return logCfgSnapshot
 	case "set_log_config":
 		retention, _ := params["retention_days"].(float64)
 		maxSize, _ := params["max_size_mb"].(float64)
@@ -1159,12 +1185,10 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		return map[string]interface{}{"ok": true}
 	case "emergency_reset":
 		a.engine.StopGuard()
-		a.mu.Lock()
+		a.mu.RLock()
 		rulesSnapshot := make([]*models.SplitRule, len(a.customRules))
 		copy(rulesSnapshot, a.customRules)
-		a.customRules = []*models.SplitRule{}
-		a.mu.Unlock()
-		a.store.SaveRules(a.customRules)
+		a.mu.RUnlock()
 		go func() {
 			progressFn := func(current, total int, message string) {
 				if a.ctx != nil {
@@ -1411,6 +1435,7 @@ func (a *App) trafficMonitor() {
 		if sent >= a.startSent {
 			upTotalVal = sent - a.startSent
 		}
+		a.mu.Lock()
 		histDl := a.trafficHistory["dl_total"]
 		histUp := a.trafficHistory["up_total"]
 		dlTotal := utils.FormatBytes(float64(histDl + dlTotalVal))
@@ -1419,6 +1444,7 @@ func (a *App) trafficMonitor() {
 			"dl_s": dlSpeed + "/s", "up_s": upSpeed + "/s",
 			"dl_t": dlTotal, "up_t": upTotal,
 		}
+		a.mu.Unlock()
 		a.lastRecv = recv
 		a.lastSent = sent
 		lastTime = now
@@ -1435,17 +1461,20 @@ func (a *App) persistentTrafficMonitor() {
 		today := now.Format("2006-01-02")
 		if today != lastDay {
 			lastDay = today
+			a.mu.Lock()
 			for name := range a.traffic24h {
 				a.traffic24h[name] = nil
 				a.traffic24hAccum[name] = [2]uint64{0, 0}
 				a.trafficTotal[name] = [2]uint64{0, 0}
 			}
+			a.mu.Unlock()
 		}
 		stats, err := psnet.IOCounters(true)
 		if err != nil {
 			continue
 		}
 		tick++
+		a.mu.Lock()
 		for _, s := range stats {
 			if !a.persistentMon[s.Name] {
 				continue
@@ -1484,6 +1513,7 @@ func (a *App) persistentTrafficMonitor() {
 				a.traffic24hAccum[name] = [2]uint64{0, 0}
 			}
 		}
+		a.mu.Unlock()
 	}
 }
 
@@ -1605,6 +1635,7 @@ func (a *App) auditMonitor() {
 				}
 			}
 		}
+		a.mu.Lock()
 		for name, traffic := range newProcessTraffic {
 			if existing, ok := a.processTraffic[name]; ok {
 				existing["dl"] += traffic["dl"]
@@ -1633,6 +1664,7 @@ func (a *App) auditMonitor() {
 			conns = conns[:50]
 		}
 		a.auditData = conns
+		a.mu.Unlock()
 
 		if a.isLogging {
 			a.writeAuditLog(conns)
@@ -2166,7 +2198,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 			currentRoute++
 			routeKey := fmt.Sprintf("0.0.0.0/0|%d|%s", idx, gw)
 			sysKey := fmt.Sprintf("0.0.0.0/0|%s", gw)
-			if _, ok := a.injectedRoutes.Load(routeKey); ok || systemRoutes[sysKey] {
+			if _, ok := a.injectedRoutes.Load(routeKey); ok && systemRoutes[sysKey] {
 				applied++
 				a.injectedRoutes.Store(routeKey, true)
 				messages = append(messages, fmt.Sprintf("[%s] 默认路由已存在，跳过", s.Name))
@@ -2258,7 +2290,7 @@ func (a *App) handleApplyStrategies() map[string]interface{} {
 				routeKey = fmt.Sprintf("%s/32|%d|%s", line, idx, gw)
 				sysKey = fmt.Sprintf("%s/32|%s", line, gw)
 			}
-			if _, ok := a.injectedRoutes.Load(routeKey); ok || systemRoutes[sysKey] {
+			if _, ok := a.injectedRoutes.Load(routeKey); ok && systemRoutes[sysKey] {
 				skipped++
 				currentRoute++
 				a.injectedRoutes.Store(routeKey, true)

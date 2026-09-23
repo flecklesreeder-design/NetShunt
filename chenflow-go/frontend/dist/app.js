@@ -799,12 +799,19 @@ async function pollRealtimeData() {
       api('get_traffic_charts'),
     ]);
 
-    if (logRes.log && logRes.log.length > _lastLogLen) {
-      const newLog = logRes.log.substring(_lastLogLen);
-      _lastLogLen = logRes.log.length;
-      const el = $('#logArea');
-      el.appendChild(document.createTextNode(newLog));
-      el.scrollTop = el.scrollHeight;
+    if (logRes.log) {
+      if (logRes.log.length < _lastLogLen) {
+        _lastLogLen = 0;
+        const el = $('#logArea');
+        el.textContent = logRes.log;
+        el.scrollTop = el.scrollHeight;
+      } else if (logRes.log.length > _lastLogLen) {
+        const newLog = logRes.log.substring(_lastLogLen);
+        _lastLogLen = logRes.log.length;
+        const el = $('#logArea');
+        el.appendChild(document.createTextNode(newLog));
+        el.scrollTop = el.scrollHeight;
+      }
     }
 
     if (statusRes.text) {
