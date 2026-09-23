@@ -361,7 +361,7 @@ input[type="checkbox"]:checked::after { content: '✓'; position: absolute; colo
 .analyzer-table-card { flex: 1; overflow: hidden; padding: 0; }
 .table-wrapper { height: 100%; overflow: auto; border-radius: 16px; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.data-table th { background: var(--bg-elevated); color: var(--text-secondary); font-weight: 600; padding: 8px 12px; text-align: left; position: sticky; top: 0; z-index: 1; }
+.data-table th { background: var(--bg-base); color: var(--text-secondary); font-weight: 600; padding: 8px 12px; text-align: left; position: sticky; top: 0; z-index: 1; border-bottom: 1px solid var(--border-subtle); }
 .data-table td { padding: 8px 12px; color: var(--text-primary); border-bottom: 0.5px solid var(--border-subtle); }
 .data-table tr:hover td { background: var(--bg-hover); }
 

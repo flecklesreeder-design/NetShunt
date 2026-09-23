@@ -67,7 +67,7 @@ type App struct {
 	trafficTotal      map[string][2]uint64
 }
 
-const appVersion = "3.6.6"
+const appVersion = "3.6.7"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
