@@ -67,7 +67,7 @@ type App struct {
 	trafficTotal      map[string][2]uint64
 }
 
-const appVersion = "3.6.1"
+const appVersion = "3.6.2"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -642,9 +642,12 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 		return map[string]interface{}{"ok": true}
 	case "get_traffic_charts":
 		charts := make(map[string]interface{})
-		for adapter, data := range a.traffic24h {
+		for adapter, enabled := range a.persistentMon {
+			if !enabled {
+				continue
+			}
 			entry := map[string]interface{}{
-				"history": data,
+				"history": a.traffic24h[adapter],
 			}
 			if rt, ok := a.trafficRealtime[adapter]; ok {
 				entry["rt_dl"] = rt[0]
