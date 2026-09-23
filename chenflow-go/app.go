@@ -67,7 +67,7 @@ type App struct {
 	trafficTotal      map[string][2]uint64
 }
 
-const appVersion = "3.6.4"
+const appVersion = "3.6.5"
 const githubRepo = "flecklesreeder-design/NetShunt"
 
 func NewApp() *App {
@@ -659,7 +659,7 @@ func (a *App) ApiCall(method string, params map[string]interface{}) map[string]i
 			}
 			charts[adapter] = entry
 		}
-		return map[string]interface{}{"charts": charts}
+		return map[string]interface{}{"charts": charts, "now": time.Now().Unix()}
 	case "get_process_traffic":
 		result := make([]map[string]interface{}, 0)
 		for name, traffic := range a.processTraffic {
@@ -1428,8 +1428,19 @@ func (a *App) trafficMonitor() {
 func (a *App) persistentTrafficMonitor() {
 	prevStats := make(map[string][2]uint64)
 	tick := 0
+	lastDay := time.Now().Format("2006-01-02")
 	for a.monitorRun {
 		time.Sleep(2 * time.Second)
+		now := time.Now()
+		today := now.Format("2006-01-02")
+		if today != lastDay {
+			lastDay = today
+			for name := range a.traffic24h {
+				a.traffic24h[name] = nil
+				a.traffic24hAccum[name] = [2]uint64{0, 0}
+				a.trafficTotal[name] = [2]uint64{0, 0}
+			}
+		}
 		stats, err := psnet.IOCounters(true)
 		if err != nil {
 			continue

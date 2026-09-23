@@ -126,8 +126,7 @@ const I18N = {
     'theme.apple': '苹果',
     'theme.apple_desc': 'macOS 浅色，简洁明亮',
     'adapter.title': '网卡管理（自动识别本机网卡）',
-    'adapter.hint1': '双网卡推荐方案：网卡 A → 默认出口（局域网 + 国际流量）｜网卡 B → 国内分流（中国大陆 IP）',
-    'adapter.hint2': '选择「默认出口」后，系统会自动为第二块在线网卡配对「国内分流」（推荐预设仅针对在线且有网关的网卡）。',
+
     'adapter.refresh': '刷新网卡',
     'adapter.recommend': '推荐预设',
     'adapter.apply': '应用分流',
@@ -421,8 +420,7 @@ const I18N = {
     'theme.apple': 'Apple',
     'theme.apple_desc': 'macOS light style',
     'adapter.title': 'Adapter Manager (Auto-detect)',
-    'adapter.hint1': 'Dual-adapter setup: Adapter A → Default exit (LAN + intl traffic) | Adapter B → CN split (China IPs)',
-    'adapter.hint2': 'After choosing "Default Exit", system auto-pairs the second online adapter as "CN Split" (preset only applies to online adapters with gateway).',
+
     'adapter.refresh': 'Refresh',
     'adapter.recommend': 'Recommend',
     'adapter.apply': 'Apply',

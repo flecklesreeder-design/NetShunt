@@ -830,12 +830,12 @@ async function pollRealtimeData() {
     }
 
     if (chartsRes && chartsRes.charts) {
-      drawTrafficCharts(chartsRes.charts);
+      drawTrafficCharts(chartsRes.charts, chartsRes.now);
     }
   } catch (e) { console.error(e); }
 }
 
-function drawTrafficCharts(charts) {
+function drawTrafficCharts(charts, nowTs) {
   const container = $('#trafficCharts');
   if (!container) return;
   const adapters = Object.keys(charts);
@@ -868,7 +868,7 @@ function drawTrafficCharts(charts) {
       wrap.style.cssText = 'margin-bottom:' + gap + 'px';
       container.appendChild(wrap);
     }
-    drawAdapterChart(wrap, adapter, charts[adapter], cardH);
+    drawAdapterChart(wrap, adapter, charts[adapter], cardH, nowTs);
   });
 
   Array.from(container.children).forEach(child => {
@@ -876,7 +876,7 @@ function drawTrafficCharts(charts) {
   });
 }
 
-function drawAdapterChart(wrap, adapter, info, cardH) {
+function drawAdapterChart(wrap, adapter, info, cardH, nowTs) {
   const W = wrap.clientWidth || 600;
   const H = cardH;
   let canvas = wrap.querySelector('canvas');
@@ -944,11 +944,9 @@ function drawAdapterChart(wrap, adapter, info, cardH) {
     const tx = Math.round(ratio * W);
     const totalSec = points * 60;
     const secAgo = Math.round(totalSec * (1 - ratio));
-    let label;
-    if (secAgo === 0) label = 'now';
-    else if (secAgo >= 3600) label = '-' + Math.round(secAgo / 3600) + 'h';
-    else if (secAgo >= 60) label = '-' + Math.round(secAgo / 60) + 'm';
-    else label = '-' + secAgo + 's';
+    const tickTs = (nowTs || Math.floor(Date.now() / 1000)) - secAgo;
+    const d = new Date(tickTs * 1000);
+    const label = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
     ctx.fillText(label, tx, axisY + 2);
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.beginPath();
