@@ -872,19 +872,10 @@ function drawTrafficCharts(charts) {
 function drawSingleChart(wrap, adapter, info, chartH) {
   const W = wrap.clientWidth || 600;
   const H = chartH;
-  const headerH = 18;
+  const headerH = 16;
   const canvasH = H - headerH;
-  let canvas = wrap.querySelector('canvas');
-  if (!canvas) {
-    canvas = document.createElement('canvas');
-    wrap.appendChild(canvas);
-  }
-  if (canvas.width !== W || canvas.height !== canvasH) {
-    canvas.width = W;
-    canvas.height = canvasH;
-  }
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, W, canvasH);
+  const gap = 6;
+  const halfW = Math.floor((W - gap) / 2);
 
   const rtDl = info.rt_dl || 0;
   const rtUp = info.rt_up || 0;
@@ -892,13 +883,36 @@ function drawSingleChart(wrap, adapter, info, chartH) {
   const totalUp = info.total_up || 0;
   const data = info.history || [];
 
+  let canvases = wrap.querySelectorAll('canvas');
+  while (canvases.length < 2) {
+    const c = document.createElement('canvas');
+    c.style.cssText = 'display:inline-block;vertical-align:top';
+    wrap.appendChild(c);
+    canvases = wrap.querySelectorAll('canvas');
+  }
+  canvases[0].style.marginRight = gap + 'px';
+
+  drawHalfChart(canvases[0], halfW, canvasH, headerH,
+    adapter + ' \u2193' + t('traffic.chart_dl') + '  ' + formatRate(rtDl) + '  \u7D2F\u8BA1:' + formatBytes(totalDl),
+    data, 0, '#22c55e');
+  drawHalfChart(canvases[1], halfW, canvasH, headerH,
+    adapter + ' \u2191' + t('traffic.chart_up') + '  ' + formatRate(rtUp) + '  \u7D2F\u8BA1:' + formatBytes(totalUp),
+    data, 1, '#3b82f6');
+}
+
+function drawHalfChart(canvas, W, canvasH, headerH, label, data, offset, color) {
+  if (canvas.width !== W || canvas.height !== canvasH) {
+    canvas.width = W;
+    canvas.height = canvasH;
+  }
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, canvasH);
+
   ctx.fillStyle = '#e0e0e0';
   ctx.font = '11px sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  const header = adapter + '   \u2193' + formatRate(rtDl) + '  \u2191' + formatRate(rtUp) +
-    '   \u7D2F\u8BA1: \u2193' + formatBytes(totalDl) + ' \u2191' + formatBytes(totalUp);
-  ctx.fillText(header, 2, 1);
+  ctx.fillText(label, 2, 1);
 
   const points = Math.floor(data.length / 2);
   if (points < 2) {
@@ -911,13 +925,17 @@ function drawSingleChart(wrap, adapter, info, chartH) {
   }
 
   let maxVal = 1;
-  for (let i = 0; i < data.length; i++) {
-    if (data[i] > maxVal) maxVal = data[i];
+  const vals = [];
+  for (let i = 0; i < points; i++) {
+    const v = data[i * 2 + offset];
+    vals.push(v);
+    if (v > maxVal) maxVal = v;
   }
+
   const topPad = 4;
   const botPad = 2;
-  const plotH = canvasH - topPad - botPad;
-  const plotY = topPad;
+  const plotH = canvasH - headerH - topPad - botPad;
+  const plotY = headerH + topPad;
   const stepX = W / Math.max(points - 1, 1);
 
   ctx.strokeStyle = 'rgba(128,128,128,0.12)';
@@ -930,21 +948,16 @@ function drawSingleChart(wrap, adapter, info, chartH) {
     ctx.stroke();
   }
 
-  function drawLine(color, offset) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < points; i++) {
-      const val = data[i * 2 + offset];
-      const x = i * stepX;
-      const y = plotY + plotH - Math.floor(plotH * val / maxVal);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < points; i++) {
+    const x = i * stepX;
+    const y = plotY + plotH - Math.floor(plotH * vals[i] / maxVal);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
   }
-  drawLine('#22c55e', 0);
-  drawLine('#3b82f6', 1);
+  ctx.stroke();
 
   ctx.fillStyle = '#999';
   ctx.font = '9px sans-serif';
